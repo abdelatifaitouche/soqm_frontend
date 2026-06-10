@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables (contains secrets/URLs)
+.env.production
+.env.development
+.env.local
+.env.*.local
+
+# Keep this so teammates know what vars are needed (no real values)
+# .env.development  ← commit this if it only has localhost URLs
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Editor & OS
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+Thumbs.db
+Desktop.ini
+
+# shadcn (auto-generated, no need to ignore — commit it)
+# components/ui/ ← DO commit this
+
+# Misc
+.DS_Store
+*.local

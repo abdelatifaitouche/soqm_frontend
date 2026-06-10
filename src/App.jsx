@@ -1,13 +1,5 @@
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import AppRouter from "@/router/AppRouter"
 
-function App() {
-  console.log('API URL:', import.meta.env.VITE_API_BASE_URL)
-  return (
-    <>
-     <Button>Hello shadcn</Button>
-    </>
-  )
+export default function App() {
+  return <AppRouter />
 }
-
-export default App

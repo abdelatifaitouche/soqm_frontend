@@ -3,8 +3,8 @@ import { getComponents } from "@/api/endpoints/componentsApi"
 
 export function useComponents() {
   const [components, setComponents] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(null)
 
   useEffect(() => {
     getComponents()
@@ -13,5 +13,5 @@ export function useComponents() {
       .finally(() => setLoading(false))
   }, [])
 
-  return { components, loading, error }
+  return { components, setComponents, loading, error }
 }

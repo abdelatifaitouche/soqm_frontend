@@ -16,6 +16,7 @@ export function setAuthInterceptors(refreshTokenFn, logoutFn) {
   // Inject access token from localStorage on every request
   axiosClient.interceptors.request.use((config) => {
     const token = getToken()
+    console.log(token)
     if (token) config.headers.Authorization = `Bearer ${token}`
     return config
   })

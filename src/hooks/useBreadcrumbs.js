@@ -5,6 +5,7 @@ const ROUTE_LABELS = {
   "dashboard": "Dashboard",
   "users":    "Users",
   "settings": "Settings",
+  "users": "Users",
   // add more as you add pages
 }
 

@@ -8,6 +8,7 @@ import DashboardPage from "@/pages/dashboard/dashboard"
 import NotFoundPage from "@/pages/NotFoundPage"
 import IsqmComponents from "@/pages/isqm_components/IsqmComponents"
 import UsersPage from "@/pages/users/Users"
+import Departments from "@/pages/departments/Departments"
 
 export default function AppRouter() {
   return (
@@ -26,6 +27,7 @@ export default function AppRouter() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/components" element={<IsqmComponents />} />
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/departments" element={<Departments />} />
             {/* add more protected routes here */}
           </Route>
         </Route>

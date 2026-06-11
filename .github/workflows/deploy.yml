@@ -1,4 +1,4 @@
-name: Deploy Frontend
+name: Frontend CI/CD Deploy
 
 on:
   push:
@@ -6,54 +6,60 @@ on:
       - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Setup Node
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
+          node-version: 20
 
+      # 3. Install dependencies
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Build application
+      # 4. Create production env (IMPORTANT: no IPs)
+      - name: Setup production env
+        run: |
+          echo "VITE_API_URL=/api/v1" > .env.production
+
+      # 5. Build React app
+      - name: Build frontend
         run: npm run build
 
+      # 6. Setup SSH
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-
-      - name: Add server to known_hosts
-        run: |
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Create deploy directory
+      # 7. Deploy to VPS (copy build to nginx folder)
+      - name: Deploy to VPS
         run: |
-          ssh -i ~/.ssh/id_ed25519 \
-          ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-          "mkdir -p /home/ubuntu/frontend-deploy"
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
 
-      - name: Upload build files
-        run: |
-          rsync -az --delete \
-          -e "ssh -i ~/.ssh/id_ed25519" \
-          dist/ \
-          ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/ubuntu/frontend-deploy/
+            set -e
 
-      - name: Deploy to nginx directory
-        run: |
-          ssh -i ~/.ssh/id_ed25519 \
-          ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
-            sudo mkdir -p /var/www/soqm_frontend
-            sudo rsync -a --delete /home/ubuntu/frontend-deploy/ /var/www/soqm_frontend/
-            sudo nginx -t
-            sudo systemctl reload nginx
+            echo "Cleaning old frontend..."
+            sudo rm -rf /var/www/soqm_frontend/*
+
+          EOF
+
+          scp -i ~/.ssh/id_ed25519 -r dist/* ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/tmp/frontend_build
+
+          ssh -i ~/.ssh/id_ed25519 ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+
+            sudo mv /tmp/frontend_build/* /var/www/soqm_frontend/
+            sudo chown -R www-data:www-data /var/www/soqm_frontend
+
+            echo "Frontend deployed successfully"
+
           EOF

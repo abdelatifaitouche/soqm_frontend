@@ -17,15 +17,15 @@ import {
 
 // ── State config ──────────────────────────────────────────────────────────────
 const STATE_CONFIG = {
-  draft:        { label: "Draft",        bg: "bg-gray-100 dark:bg-muted",          text: "text-gray-600 dark:text-muted-foreground", dot: "bg-gray-400" },
-  approved:     { label: "Approved",     bg: "bg-emerald-50 dark:bg-emerald-950/30", text: "text-emerald-700 dark:text-emerald-400",  dot: "bg-emerald-500" },
-  active:       { label: "Active",       bg: "bg-blue-50 dark:bg-blue-950/30",      text: "text-blue-700 dark:text-blue-400",        dot: "bg-blue-500" },
-  under_review: { label: "Under Review", bg: "bg-amber-50 dark:bg-amber-950/30",    text: "text-amber-700 dark:text-amber-400",      dot: "bg-amber-500" },
-  revised:      { label: "Revised",      bg: "bg-purple-50 dark:bg-purple-950/30",  text: "text-purple-700 dark:text-purple-400",    dot: "bg-purple-500" },
-  achieved:     { label: "Achieved",     bg: "bg-teal-50 dark:bg-teal-950/30",      text: "text-teal-700 dark:text-teal-400",        dot: "bg-teal-500" },
-  superseded:   { label: "Superseded",   bg: "bg-orange-50 dark:bg-orange-950/30",  text: "text-orange-700 dark:text-orange-400",    dot: "bg-orange-500" },
-  suspended:    { label: "Suspended",    bg: "bg-red-50 dark:bg-red-950/30",        text: "text-red-700 dark:text-red-400",          dot: "bg-red-500" },
-  archived:     { label: "Archived",     bg: "bg-gray-100 dark:bg-muted",           text: "text-gray-500 dark:text-muted-foreground", dot: "bg-gray-400" },
+  draft:        { label: "Draft",        bg: "bg-gray-100 dark:bg-muted",            text: "text-gray-600 dark:text-muted-foreground", dot: "bg-gray-400" },
+  approved:     { label: "Approved",     bg: "bg-emerald-50 dark:bg-emerald-950/30", text: "text-emerald-700 dark:text-emerald-400",   dot: "bg-emerald-500" },
+  active:       { label: "Active",       bg: "bg-blue-50 dark:bg-blue-950/30",       text: "text-blue-700 dark:text-blue-400",         dot: "bg-blue-500" },
+  under_review: { label: "Under Review", bg: "bg-amber-50 dark:bg-amber-950/30",     text: "text-amber-700 dark:text-amber-400",       dot: "bg-amber-500" },
+  revised:      { label: "Revised",      bg: "bg-purple-50 dark:bg-purple-950/30",   text: "text-purple-700 dark:text-purple-400",     dot: "bg-purple-500" },
+  achieved:     { label: "Achieved",     bg: "bg-teal-50 dark:bg-teal-950/30",       text: "text-teal-700 dark:text-teal-400",         dot: "bg-teal-500" },
+  superseded:   { label: "Superseded",   bg: "bg-orange-50 dark:bg-orange-950/30",   text: "text-orange-700 dark:text-orange-400",     dot: "bg-orange-500" },
+  suspended:    { label: "Suspended",    bg: "bg-red-50 dark:bg-red-950/30",         text: "text-red-700 dark:text-red-400",           dot: "bg-red-500" },
+  archived:     { label: "Archived",     bg: "bg-gray-100 dark:bg-muted",            text: "text-gray-500 dark:text-muted-foreground", dot: "bg-gray-400" },
 }
 
 const ALL_STATES = Object.keys(STATE_CONFIG)
@@ -53,6 +53,18 @@ function formatDateTime(dateStr) {
     day: "numeric", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   })
+}
+
+// ── Diff helper — only returns fields that changed ────────────────────────────
+function diffForm(form, original) {
+  return Object.fromEntries(
+    Object.entries(form).filter(([key, val]) => {
+      if (key === "review_date") {
+        return val !== (original[key]?.split("T")[0] ?? "")
+      }
+      return val !== original[key]
+    })
+  )
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -85,17 +97,25 @@ export default function ObjectiveDetails() {
   }
 
   const handleSave = async () => {
-    if (!form.objective_text.trim()) { setSaveError("Objective text is required."); return }
-    if (!form.component_id)          { setSaveError("Component is required."); return }
+    if (!form.objective_text?.trim()) { setSaveError("Objective text is required."); return }
+    if (!form.component_id)           { setSaveError("Component is required."); return }
+
+    const changes = diffForm(form, objective)
+
+    if (Object.keys(changes).length === 0) {
+      setEditing(false)
+      return
+    }
+
     setSaving(true)
     setSaveError("")
     try {
-      const res = await updateObjective(id, form)
+      const res = await updateObjective(id, changes)
       setObjective(res.data)
       setEditing(false)
     } catch (err) {
-        console.log(err)
-      setSaveError(err?.response?.data?.detail ?? "Failed to save. Please try again.")
+      const data = err?.response?.data
+      setSaveError(data?.detail ?? data?.message ?? "Failed to save. Please try again.")
     } finally {
       setSaving(false)
     }

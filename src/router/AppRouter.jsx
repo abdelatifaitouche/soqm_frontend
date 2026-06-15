@@ -9,6 +9,9 @@ import NotFoundPage from "@/pages/NotFoundPage"
 import IsqmComponents from "@/pages/isqm_components/IsqmComponents"
 import UsersPage from "@/pages/users/Users"
 import Departments from "@/pages/departments/Departments"
+import Objectives from "@/pages/objectives/Objectives"
+import CreateObjective from "@/pages/objectives/CreateObjective"
+import ObjectiveDetails from "@/pages/objectives/ObjectiveDetails"
 
 export default function AppRouter() {
   return (
@@ -29,6 +32,10 @@ export default function AppRouter() {
             <Route path="/users" element={<UsersPage />} />
             <Route path="/departments" element={<Departments />} />
             {/* add more protected routes here */}
+            <Route path="/objectives" element={<Objectives />} />
+            <Route path="/objectives/create" element={<CreateObjective />} />
+            <Route path="/objectives/:id"     element={<ObjectiveDetails />} />
+
           </Route>
         </Route>
 

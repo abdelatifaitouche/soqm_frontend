@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ShieldCheck, AlertCircle, Loader2, Plus, Pencil, Trash2 } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 const COMPONENT_COLORS = [
   { bg: "bg-[#EDE9F8]", text: "text-[#3B1F6A]", dot: "bg-[#7B3FBE]" },
@@ -38,6 +39,8 @@ const COMPONENT_COLORS = [
 const EMPTY_FORM = { name: "", isqm_reference: "" }
 
 export default function IsqmComponents() {
+  const navigate = useNavigate()
+
   const { components, loading, error, setComponents } = useComponents()
   const { isAdmin } = useRole()
 
@@ -146,7 +149,7 @@ export default function IsqmComponents() {
             </span>
             {isAdmin && (
               <button
-                onClick={openCreate}
+                onClick={()=>navigate("/components/create")}
                 className="flex items-center gap-1.5 bg-[#3B1F6A] hover:bg-[#52298F] text-white text-xs font-medium px-3.5 py-2 rounded-lg transition-colors"
               >
                 <Plus className="size-3.5" />

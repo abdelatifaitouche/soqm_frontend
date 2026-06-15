@@ -12,6 +12,7 @@ import Departments from "@/pages/departments/Departments"
 import Objectives from "@/pages/objectives/Objectives"
 import CreateObjective from "@/pages/objectives/CreateObjective"
 import ObjectiveDetails from "@/pages/objectives/ObjectiveDetails"
+import CreateComponent from "@/pages/isqm_components/CreateComponent"
 
 export default function AppRouter() {
   return (
@@ -29,9 +30,14 @@ export default function AppRouter() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/components" element={<IsqmComponents />} />
+            <Route path="/components/create" element={<CreateComponent />} />
+
+
             <Route path="/users" element={<UsersPage />} />
             <Route path="/departments" element={<Departments />} />
             {/* add more protected routes here */}
+            
+            
             <Route path="/objectives" element={<Objectives />} />
             <Route path="/objectives/create" element={<CreateObjective />} />
             <Route path="/objectives/:id"     element={<ObjectiveDetails />} />

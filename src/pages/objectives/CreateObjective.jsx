@@ -47,9 +47,13 @@ export default function CreateObjectivePage() {
     try {
       await createObjective(form)
       navigate("/objectives")
-    } catch (err) {
-      setFormError(err?.response?.data?.detail ?? "Something went wrong. Please try again.")
-    } finally {
+    }  catch (err) {
+  const msg =
+    err?.response?.data?.message ??
+    err?.message ??
+    "Something went wrong. Please try again."
+  setFormError(msg)
+} finally {
       setSaving(false)
     }
   }

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
+import { ThemeToggle } from "@/components/common/Themetoggle"
 
 export default function AppLayout() {
   const breadcrumbs = useBreadcrumbs()
@@ -23,7 +24,9 @@ export default function AppLayout() {
     <SidebarProvider style={{ "--sidebar-width": "19rem" }}>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 px-4">
+
+        {/* Header */}
+        <header className="flex h-16 shrink-0 items-center gap-2 px-6 border-b border-border bg-card/60 backdrop-blur-sm sticky top-0 z-10">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
           <Breadcrumb>
@@ -33,10 +36,17 @@ export default function AppLayout() {
                 return (
                   <BreadcrumbItem key={crumb.href}>
                     {isLast ? (
-                      <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                      <BreadcrumbPage className="font-medium text-foreground">
+                        {crumb.label}
+                      </BreadcrumbPage>
                     ) : (
                       <>
-                        <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
+                        <BreadcrumbLink
+                          href={crumb.href}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {crumb.label}
+                        </BreadcrumbLink>
                         <BreadcrumbSeparator />
                       </>
                     )}
@@ -45,12 +55,18 @@ export default function AppLayout() {
               })}
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </header>
 
-        {/* Page content renders here */}
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <Outlet />
-        </div>
+        {/* Page content */}
+        <main className="flex flex-1 flex-col">
+          <div className="w-full max-w-screen-xl mx-auto px-6 py-8">
+            <Outlet />
+          </div>
+        </main>
+
       </SidebarInset>
     </SidebarProvider>
   )

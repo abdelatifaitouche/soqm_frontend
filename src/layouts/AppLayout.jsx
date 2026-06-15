@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
-import { ThemeToggle } from "@/components/common/Themetoggle"
+import { ThemeToggle } from "@/components/common/ThemeToggle"
 
 export default function AppLayout() {
   const breadcrumbs = useBreadcrumbs()
@@ -56,7 +56,7 @@ export default function AppLayout() {
             </BreadcrumbList>
           </Breadcrumb>
           <div className="ml-auto">
-            <ThemeToggle />
+            <ThemeToggle/>
           </div>
         </header>
 

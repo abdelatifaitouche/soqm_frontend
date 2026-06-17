@@ -35,6 +35,12 @@ import {
 
 const navigation = [
   {
+    label: "AI Assistant",
+    items: [
+      { title: "SOQM Chatbot", href: "/chatbot", icon: Bot },
+    ],
+  },
+  {
     label: "Overview",
     items: [
       { title: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -84,12 +90,7 @@ const navigation = [
       { title: "Document Library", href: "/documents", icon: Library },
     ],
   },
-  {
-    label: "AI Assistant",
-    items: [
-      { title: "SOQM Chatbot", href: "/chatbot", icon: Bot },
-    ],
-  },
+  
 ]
 
 export function AppSidebar({ ...props }) {

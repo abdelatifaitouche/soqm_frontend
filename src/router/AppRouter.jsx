@@ -13,6 +13,7 @@ import Objectives from "@/pages/objectives/Objectives"
 import CreateObjective from "@/pages/objectives/CreateObjective"
 import ObjectiveDetails from "@/pages/objectives/ObjectiveDetails"
 import CreateComponent from "@/pages/isqm_components/CreateComponent"
+import RiskMatrix from "@/pages/risks/RiskMatrix"
 
 export default function AppRouter() {
   return (
@@ -42,6 +43,7 @@ export default function AppRouter() {
             <Route path="/objectives/create" element={<CreateObjective />} />
             <Route path="/objectives/:id"     element={<ObjectiveDetails />} />
 
+            <Route path="/risks"     element={<RiskMatrix />} />
           </Route>
         </Route>
 

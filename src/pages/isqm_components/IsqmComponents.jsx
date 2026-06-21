@@ -165,6 +165,7 @@ export default function IsqmComponents() {
             const color = COMPONENT_COLORS[index % COMPONENT_COLORS.length]
             return (
               <div
+                onClick={()=>navigate(`/components/${component.id}`)}
                 key={component.id}
                 className="group relative flex flex-col gap-4 rounded-xl border border-border bg-white p-5 hover:shadow-md hover:border-[#C4B0E8] transition-all duration-200"
               >

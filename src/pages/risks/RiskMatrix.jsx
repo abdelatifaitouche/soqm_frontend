@@ -1,169 +1,182 @@
-import React, { useState } from "react"
-import { useRisks } from "@/hooks/useRisks"
-import { AlertTriangle, ArrowRight, ArrowUpRight, ChevronRight, Shield, X } from "lucide-react"
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { AlertTriangle, Shield, X, Plus, ArrowRight, ArrowUpRight, ChevronRight } from "lucide-react"
+import { useRisks } from "@/hooks/useRisks"
+import { useComponents } from "@/hooks/useComponents"
+import { useObjectives } from "@/hooks/useObjectives"
+import { Loader2, AlertCircle } from "lucide-react"
 
-// ─── Zone helpers ──────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
+const SIG_LABELS = { 3: "High", 2: "Med", 1: "Low" }
+const OCC_LABELS = { 1: "Low",  2: "Med", 3: "High" }
+const SIG_ROWS   = [3, 2, 1]
+const OCC_COLS   = [1, 2, 3]
+
+const STATUS_OPTIONS = ["open", "mitigated", "closed", "accepted"]
 
 function getZone(significance, occurrence) {
-  // Map 3×3 grid: rows = significance (High/Med/Low), cols = occurrence (Low/Med/High)
-  const s = significance // 1=Low 2=Med 3=High
-  const o = occurrence   // 1=Low 2=Med 3=High
-  const score = s * o
+  const score = significance * occurrence
   if (score >= 6) return "critical"
   if (score >= 3) return "high"
   return "low"
 }
 
-const ZONE_META = {
+const ZONE = {
   critical: {
-    label: "Critical",
-    bg: "bg-red-50",
-    border: "border-red-200",
-    chipBg: "bg-red-100",
-    chipText: "text-red-800",
-    chipBorder: "border-red-200",
-    dot: "bg-red-400",
-    countBg: "bg-red-50",
-    countText: "text-red-700",
-    badgeBg: "bg-red-100",
-    badgeText: "text-red-700",
+    label:    "Critical",
+    cell:     "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900",
+    chip:     "bg-red-100 text-red-800 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900",
+    badge:    "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400",
+    stat:     "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900",
+    dot:      "bg-red-400",
+    score:    "text-red-700 dark:text-red-400",
+    pip:      "#E24B4A",
   },
   high: {
-    label: "High",
-    bg: "bg-orange-50",
-    border: "border-orange-200",
-    chipBg: "bg-orange-100",
-    chipText: "text-orange-800",
-    chipBorder: "border-orange-200",
-    dot: "bg-orange-400",
-    countBg: "bg-orange-50",
-    countText: "text-orange-700",
-    badgeBg: "bg-orange-100",
-    badgeText: "text-orange-700",
+    label:    "High",
+    cell:     "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900",
+    chip:     "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900",
+    badge:    "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
+    stat:     "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900",
+    dot:      "bg-amber-400",
+    score:    "text-amber-700 dark:text-amber-400",
+    pip:      "#BA7517",
   },
   low: {
-    label: "Low",
-    bg: "bg-green-50",
-    border: "border-green-200",
-    chipBg: "bg-green-100",
-    chipText: "text-green-800",
-    chipBorder: "border-green-200",
-    dot: "bg-green-400",
-    countBg: "bg-green-50",
-    countText: "text-green-700",
-    badgeBg: "bg-green-100",
-    badgeText: "text-green-700",
+    label:    "Low",
+    cell:     "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900",
+    chip:     "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900",
+    badge:    "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",
+    stat:     "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900",
+    dot:      "bg-emerald-400",
+    score:    "text-emerald-700 dark:text-emerald-400",
+    pip:      "#1D9E75",
   },
 }
 
-// ─── Significance / Occurrence label maps ──────────────────────────────────────
+// ── DotBar ────────────────────────────────────────────────────────────────────
+function DotBar({ value, max = 3 }) {
+  return (
+    <div className="flex gap-0.5">
+      {Array.from({ length: max }).map((_, i) => (
+        <div
+          key={i}
+          className={`size-1.5 rounded-sm ${i < value ? "bg-[#7B3FBE]" : "bg-muted border border-border"}`}
+        />
+      ))}
+    </div>
+  )
+}
 
-const SIG_LABELS = { 3: "High", 2: "Medium", 1: "Low" }
-const OCC_LABELS = { 1: "Low", 2: "Medium", 3: "High" }
-
-// ─── Risk Chip ────────────────────────────────────────────────────────────────
-
-function RiskChip({ risk, zone, onClick }) {
-  const m = ZONE_META[zone]
+// ── Risk chip (inside matrix cell) ────────────────────────────────────────────
+function RiskChip({ risk, onClick }) {
+  const zone = getZone(risk.significance, risk.occurence)
+  const z    = ZONE[zone]
   return (
     <button
       onClick={() => onClick(risk)}
-      title={risk.description}
-      className={`
-        inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
-        border transition-all hover:-translate-y-0.5 hover:shadow-sm
-        ${m.chipBg} ${m.chipText} ${m.chipBorder}
-      `}
+      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border font-mono transition-transform hover:-translate-y-0.5 ${z.chip}`}
     >
       {risk.risk_ref}
-      <ChevronRight size={10} strokeWidth={2} />
+      <ChevronRight className="size-2.5" />
     </button>
   )
 }
 
-// ─── Risk Detail Drawer ───────────────────────────────────────────────────────
+// ── Matrix cell ───────────────────────────────────────────────────────────────
+function MatrixCell({ significance, occurrence, risks, onChipClick }) {
+  const zone      = getZone(significance, occurrence)
+  const z         = ZONE[zone]
+  const cellRisks = risks.filter((r) => r.significance === significance && r.occurence === occurrence)
 
+  return (
+    <div className={`relative min-h-[72px] rounded-md border p-2 ${z.cell}`}>
+      <div
+        className="absolute top-1.5 right-1.5 size-1.5 rounded-full opacity-40"
+        style={{ background: z.pip }}
+      />
+      <div className="flex flex-wrap gap-1">
+        {cellRisks.map((r) => (
+          <RiskChip key={r.id} risk={r} onClick={onChipClick} />
+        ))}
+        {cellRisks.length === 0 && (
+          <span className="text-xs text-muted-foreground/40">—</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Quick-view drawer ─────────────────────────────────────────────────────────
 function RiskDrawer({ risk, onClose, onNavigate }) {
   if (!risk) return null
-
   const zone = getZone(risk.significance, risk.occurence)
-  const m = ZONE_META[zone]
+  const z    = ZONE[zone]
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end" onClick={onClose}>
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[2px]" />
-
-      {/* Panel */}
+      <div className="absolute inset-0 bg-black/20 dark:bg-black/40 backdrop-blur-[2px]" />
       <div
-        className="relative z-50 w-full max-w-md bg-white shadow-xl flex flex-col"
+        className="relative z-50 w-full max-w-sm bg-card border-l border-border flex flex-col shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-6 border-b border-slate-100">
+        <div className="flex items-start justify-between p-5 border-b border-border">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${m.badgeBg} ${m.badgeText}`}>
-                {m.label}
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${z.badge}`}>
+                {z.label}
               </span>
-              <span className="text-xs text-slate-400">
-                {SIG_LABELS[risk.significance]} significance · {OCC_LABELS[risk.occurence]} occurrence
+              <span className="text-xs text-muted-foreground">
+                {SIG_LABELS[risk.significance]} sig · {OCC_LABELS[risk.occurence]} occ
               </span>
             </div>
-            <h3 className="text-lg font-semibold text-slate-900">{risk.risk_ref}</h3>
+            <h3 className="text-base font-semibold text-foreground font-mono">{risk.risk_ref}</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="flex size-7 items-center justify-center rounded-md hover:bg-muted text-muted-foreground transition-colors"
           >
-            <X size={16} />
+            <X className="size-3.5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <div className="flex-1 overflow-y-auto p-5 space-y-5">
           <div>
-            <p className="text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Description</p>
-            <p className="text-sm text-slate-700 leading-relaxed">{risk.risk_discription}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Description</p>
+            <p className="text-sm text-foreground leading-relaxed">
+              {risk.risk_discription || "No description provided."}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-slate-50 rounded-lg p-3">
-              <p className="text-xs text-slate-400 mb-0.5">Significance</p>
-              <p className="text-sm font-medium text-slate-800">{SIG_LABELS[risk.significance]}</p>
-            </div>
-            <div className="bg-slate-50 rounded-lg p-3">
-              <p className="text-xs text-slate-400 mb-0.5">Occurrence</p>
-              <p className="text-sm font-medium text-slate-800">{OCC_LABELS[risk.occurence]}</p>
-            </div>
+            {[
+              { label: "Significance", value: SIG_LABELS[risk.significance], bar: risk.significance },
+              { label: "Occurrence",   value: OCC_LABELS[risk.occurence],    bar: risk.occurence },
+            ].map((f) => (
+              <div key={f.label} className="rounded-lg bg-muted/40 border border-border p-3">
+                <p className="text-[10px] text-muted-foreground mb-1.5">{f.label}</p>
+                <p className="text-sm font-medium text-foreground mb-1.5">{f.value}</p>
+                <DotBar value={f.bar} />
+              </div>
+            ))}
           </div>
 
-          {risk.owner && (
-            <div>
-              <p className="text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Owner</p>
-              <p className="text-sm text-slate-700">{risk.owner}</p>
-            </div>
-          )}
-
-          {risk.controls && (
-            <div>
-              <p className="text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wide">Controls</p>
-              <p className="text-sm text-slate-700 leading-relaxed">{risk.controls}</p>
-            </div>
-          )}
+          <div className="rounded-lg bg-muted/40 border border-border p-3">
+            <p className="text-[10px] text-muted-foreground mb-1">Risk Score</p>
+            <p className={`text-2xl font-semibold ${z.score}`}>{risk.score}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">/ 9 maximum</p>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-slate-100">
+        <div className="p-5 border-t border-border">
           <button
             onClick={() => onNavigate(risk.id)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
-              bg-[#4B1C82] text-white text-sm font-medium
-              hover:bg-[#3a1565] transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white text-sm font-medium transition-colors"
           >
-            View full risk details
-            <ArrowUpRight size={14} />
+            View full details <ArrowUpRight className="size-4" />
           </button>
         </div>
       </div>
@@ -171,218 +184,173 @@ function RiskDrawer({ risk, onClose, onNavigate }) {
   )
 }
 
-// ─── Matrix Cell ──────────────────────────────────────────────────────────────
-
-function MatrixCell({ significance, occurrence, risks, onRiskClick }) {
-  const zone = getZone(significance, occurrence)
-  const m = ZONE_META[zone]
-  const cellRisks = risks.filter(
-    (r) => r.significance === significance && r.occurence === occurrence
-  )
-
-  return (
-    <div
-      className={`
-        relative min-h-[88px] p-2.5
-        border ${m.border} ${m.bg}
-        transition-colors
-      `}
-    >
-      {/* Score dot */}
-      <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${m.dot} opacity-50`} />
-
-      <div className="flex flex-wrap gap-1.5 pr-4">
-        {cellRisks.map((risk) => (
-          <RiskChip
-            key={risk.id}
-            risk={risk}
-            zone={zone}
-            onClick={onRiskClick}
-          />
-        ))}
-      </div>
-
-      {cellRisks.length === 0 && (
-        <span className="text-xs text-slate-300">—</span>
-      )}
-    </div>
-  )
-}
-
-// ─── Risk List Row ────────────────────────────────────────────────────────────
-
-function RiskRow({ risk, onRiskClick, onNavigate }) {
-  const zone = getZone(risk.significance, risk.occurence)
-  const m = ZONE_META[zone]
-
-  return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors group">
-      <div className={`flex-shrink-0 w-2 h-2 rounded-full ${m.dot}`} />
-
-      <div className="w-20 flex-shrink-0">
-        <span className="text-xs font-semibold text-slate-700 font-mono">{risk.risk_ref}</span>
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-slate-600 truncate">{risk.description}</p>
-      </div>
-
-      <span
-        className={`
-          flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-          ${m.badgeBg} ${m.badgeText}
-        `}
-      >
-        {m.label}
-      </span>
-
-      <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={() => onRiskClick(risk)}
-          className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-          title="Quick view"
-        >
-          <ArrowRight size={13} />
-        </button>
-        <button
-          onClick={() => onNavigate(risk.id)}
-          className="p-1.5 rounded text-slate-400 hover:text-[#4B1C82] hover:bg-purple-50 transition-colors"
-          title="View details"
-        >
-          <ArrowUpRight size={13} />
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
-
-function RiskMatrix() {
-  const { risks, loading, error } = useRisks()
+// ── Main page ─────────────────────────────────────────────────────────────────
+export default function RiskMatrix() {
   const navigate = useNavigate()
-  const [selectedRisk, setSelectedRisk] = useState(null)
+
+  const [filters, setFilters]       = useState({ component_id: "", objective_id: "", status: "" })
   const [filterZone, setFilterZone] = useState("all")
+  const [selectedRisk, setSelectedRisk] = useState(null)
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-[600px] bg-slate-50">
-        <div className="flex flex-col items-center gap-3 text-slate-400">
-          <div className="w-6 h-6 border-2 border-slate-200 border-t-[#4B1C82] rounded-full animate-spin" />
-          <span className="text-sm">Loading risk matrix...</span>
-        </div>
-      </div>
-    )
+  // Build API params — only send non-empty values
+  const apiParams = Object.fromEntries(
+    Object.entries(filters).filter(([, v]) => v !== "")
+  )
+
+  const { risks, loading, error }    = useRisks(apiParams)
+  const { components }               = useComponents()
+  const { objectives }               = useObjectives()
+
+  const setFilter = (key) => (e) => setFilters((f) => ({ ...f, [key]: e.target.value }))
+
+  const clearFilters = () => {
+    setFilters({ component_id: "", objective_id: "", status: "" })
+    setFilterZone("all")
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-[600px] bg-slate-50">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <AlertTriangle size={24} className="text-red-400" />
-          <p className="text-sm text-slate-600">Failed to load risks. Please try again.</p>
-        </div>
-      </div>
-    )
-  }
+  const hasFilters = Object.values(filters).some(Boolean) || filterZone !== "all"
 
+  // Zone counts
   const counts = { critical: 0, high: 0, low: 0 }
-  risks.forEach((r) => {
-    counts[getZone(r.significance, r.occurence)]++
-  })
+  risks.forEach((r) => counts[getZone(r.significance, r.occurence)]++)
 
-  const filteredRisks =
+  // Apply zone filter on top of API results
+  const visibleRisks =
     filterZone === "all"
       ? risks
       : risks.filter((r) => getZone(r.significance, r.occurence) === filterZone)
 
-  const handleNavigate = (id) => {
-    navigate(`/risks/${id}`)
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 text-muted-foreground gap-2">
+      <Loader2 className="size-4 animate-spin" />
+      <span className="text-sm">Loading risk matrix…</span>
+    </div>
+  )
 
-  // 3×3 grid: significance rows 3→1 (top=High, bottom=Low), occurrence cols 1→3 (left=Low, right=High)
-  const SIG_ROWS = [3, 2, 1]
-  const OCC_COLS = [1, 2, 3]
+  if (error) return (
+    <div className="flex items-center justify-center h-64 text-destructive gap-2">
+      <AlertCircle className="size-4" />
+      <span className="text-sm">Failed to load risks.</span>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Top bar */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield size={18} className="text-[#4B1C82]" />
-            <div>
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-wide leading-none mb-0.5">
-                Grant Thornton · SOQM
-              </p>
-              <h1 className="text-base font-semibold text-slate-900 leading-none">
-                Risk matrix
-              </h1>
-            </div>
+    <>
+      <div className="space-y-5">
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground tracking-tight">Risk Matrix</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {risks.length} risk{risks.length !== 1 ? "s" : ""} registered · Significance × Occurrence
+            </p>
           </div>
-          <span className="text-xs text-slate-400">{risks.length} risks registered</span>
+          <button
+            onClick={() => navigate("/risks/create")}
+            className="flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors shrink-0"
+          >
+            <Plus className="size-3.5" /> Add risk
+          </button>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
-
-        {/* Stat row */}
+        {/* Stats strip */}
         <div className="grid grid-cols-3 gap-3">
-          {[
-            { key: "critical", label: "Critical risks" },
-            { key: "high",     label: "High risks" },
-            { key: "low",      label: "Low risks" },
-          ].map(({ key, label }) => {
-            const m = ZONE_META[key]
+          {(["critical", "high", "low"]).map((zone) => {
+            const z        = ZONE[zone]
+            const isActive = filterZone === zone
             return (
               <button
-                key={key}
-                onClick={() => setFilterZone(filterZone === key ? "all" : key)}
-                className={`
-                  text-left p-4 rounded-xl border transition-all
-                  ${filterZone === key
-                    ? `${m.bg} ${m.border} ring-2 ring-offset-1 ring-${key === "critical" ? "red" : key === "high" ? "orange" : "green"}-300`
-                    : "bg-white border-slate-200 hover:border-slate-300"
-                  }
-                `}
+                key={zone}
+                onClick={() => setFilterZone(isActive ? "all" : zone)}
+                className={`text-left rounded-xl border px-4 py-3.5 transition-all ${
+                  isActive ? z.stat : "bg-card border-border hover:border-border/80"
+                }`}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <div className={`w-2 h-2 rounded-full ${m.dot}`} />
-                  <span className="text-xs text-slate-500">{label}</span>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className={`size-2 rounded-full ${z.dot}`} />
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    {z.label}
+                  </span>
                 </div>
-                <span className="text-2xl font-semibold text-slate-900">{counts[key]}</span>
+                <p className="text-2xl font-medium text-foreground">{counts[zone]}</p>
               </button>
             )
           })}
         </div>
 
-        {/* Matrix + list layout */}
-        <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-5">
+        {/* Filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={filters.component_id}
+            onChange={setFilter("component_id")}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] transition-colors"
+          >
+            <option value="">All components</option>
+            {components.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
 
-          {/* ── 3×3 Heat map ── */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="px-4 pt-4 pb-3 border-b border-slate-100">
-              <h2 className="text-sm font-semibold text-slate-800">Heat map</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Significance × occurrence</p>
+          <select
+            value={filters.objective_id}
+            onChange={setFilter("objective_id")}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] transition-colors"
+          >
+            <option value="">All objectives</option>
+            {objectives.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.objective_text?.slice(0, 50)}{o.objective_text?.length > 50 ? "…" : ""}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.status}
+            onChange={setFilter("status")}
+            className="h-9 rounded-lg border border-input bg-card px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] transition-colors"
+          >
+            <option value="">All statuses</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s} className="capitalize">{s}</option>
+            ))}
+          </select>
+
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
+            >
+              <X className="size-3" /> Clear filters
+            </button>
+          )}
+        </div>
+
+        {/* Matrix + list */}
+        <div className="grid grid-cols-1 xl:grid-cols-[400px_1fr] gap-4">
+
+          {/* Heat map */}
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <div className="px-5 py-4 border-b border-border">
+              <h2 className="text-sm font-semibold text-foreground">Heat map</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Click a chip to quick-view the risk</p>
             </div>
-
-            <div className="p-4">
-              {/* Legend row */}
-              <div className="flex gap-3 mb-4">
-                {Object.entries(ZONE_META).map(([key, m]) => (
-                  <div key={key} className="flex items-center gap-1.5">
-                    <div className={`w-2 h-2 rounded-sm ${m.dot}`} />
-                    <span className="text-xs text-slate-500">{m.label}</span>
+            <div className="p-5">
+              {/* Legend */}
+              <div className="flex gap-4 mb-4">
+                {["critical","high","low"].map((z) => (
+                  <div key={z} className="flex items-center gap-1.5">
+                    <div className={`size-2.5 rounded-sm border ${ZONE[z].cell}`} />
+                    <span className="text-xs text-muted-foreground capitalize">{ZONE[z].label}</span>
                   </div>
                 ))}
               </div>
 
-              {/* Grid */}
               <div className="flex gap-2">
-                {/* Y-axis label */}
-                <div className="flex flex-col items-center justify-center w-5">
+                {/* Y-axis */}
+                <div className="flex items-center justify-center w-4">
                   <span
-                    className="text-[10px] text-slate-400 uppercase tracking-wider font-medium"
+                    className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground"
                     style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}
                   >
                     Significance
@@ -390,43 +358,40 @@ function RiskMatrix() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  {/* Column headers */}
-                  <div className="grid grid-cols-[44px_1fr_1fr_1fr] mb-1">
+                  {/* Col headers */}
+                  <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: "40px 1fr 1fr 1fr" }}>
                     <div />
-                    {["Low", "Med", "High"].map((l) => (
-                      <div key={l} className="text-center text-[10px] text-slate-400 font-medium pb-1">
-                        {l}
-                      </div>
+                    {["Low occ.", "Med occ.", "High occ."].map((l) => (
+                      <div key={l} className="text-center text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">{l}</div>
                     ))}
                   </div>
 
                   {/* Rows */}
-                  {SIG_ROWS.map((s) => (
-                    <div
-                      key={s}
-                      className="grid grid-cols-[44px_1fr_1fr_1fr]"
-                    >
-                      {/* Row label */}
-                      <div className="flex items-center justify-end pr-2 text-[10px] text-slate-400 font-medium">
-                        {SIG_LABELS[s]}
+                  <div className="space-y-1">
+                    {SIG_ROWS.map((s) => (
+                      <div key={s} className="grid gap-1" style={{ gridTemplateColumns: "40px 1fr 1fr 1fr" }}>
+                        <div className="flex items-center justify-end pr-2">
+                          <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                            {SIG_LABELS[s]}
+                          </span>
+                        </div>
+                        {OCC_COLS.map((o) => (
+                          <MatrixCell
+                            key={`${s}-${o}`}
+                            significance={s}
+                            occurrence={o}
+                            risks={visibleRisks}
+                            onChipClick={setSelectedRisk}
+                          />
+                        ))}
                       </div>
+                    ))}
+                  </div>
 
-                      {OCC_COLS.map((o) => (
-                        <MatrixCell
-                          key={`${s}-${o}`}
-                          significance={s}
-                          occurrence={o}
-                          risks={risks}
-                          onRiskClick={setSelectedRisk}
-                        />
-                      ))}
-                    </div>
-                  ))}
-
-                  {/* X-axis label */}
+                  {/* X-axis */}
                   <div className="text-center mt-2">
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">
-                      Occurrence
+                    <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+                      ← Occurrence →
                     </span>
                   </div>
                 </div>
@@ -434,63 +399,102 @@ function RiskMatrix() {
             </div>
           </div>
 
-          {/* ── Risk list ── */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
-            <div className="px-4 pt-4 pb-3 border-b border-slate-100 flex items-center justify-between">
+          {/* Risk register */}
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
-                <h2 className="text-sm font-semibold text-slate-800">
+                <h2 className="text-sm font-semibold text-foreground">
                   Risk register
                   {filterZone !== "all" && (
-                    <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${ZONE_META[filterZone].badgeBg} ${ZONE_META[filterZone].badgeText}`}>
-                      {ZONE_META[filterZone].label}
+                    <span className={`ml-2 text-[10px] font-semibold px-2 py-0.5 rounded-full ${ZONE[filterZone].badge}`}>
+                      {ZONE[filterZone].label}
                     </span>
                   )}
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {filteredRisks.length} {filteredRisks.length === 1 ? "risk" : "risks"}
-                  {filterZone !== "all" ? ` · filtered` : ""}
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {visibleRisks.length} risk{visibleRisks.length !== 1 ? "s" : ""}
+                  {filterZone !== "all" ? " · filtered" : ""}
                 </p>
               </div>
               {filterZone !== "all" && (
                 <button
                   onClick={() => setFilterZone("all")}
-                  className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <X size={11} />
-                  Clear filter
+                  <X className="size-3" /> Clear
                 </button>
               )}
             </div>
 
-            {/* List header */}
-            <div className="grid px-4 py-2 border-b border-slate-100 text-[10px] font-semibold text-slate-400 uppercase tracking-wide"
-              style={{ gridTemplateColumns: "8px 80px 1fr 72px 60px" }}
-            >
-              <div />
-              <div>Ref</div>
-              <div>Description</div>
-              <div className="text-center">Zone</div>
-              <div />
-            </div>
-
-            {/* Rows */}
-            <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
-              {filteredRisks.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                  <Shield size={24} className="mb-2 opacity-30" />
-                  <p className="text-sm">No risks in this zone</p>
-                </div>
-              ) : (
-                filteredRisks.map((risk) => (
-                  <RiskRow
-                    key={risk.id}
-                    risk={risk}
-                    onRiskClick={setSelectedRisk}
-                    onNavigate={handleNavigate}
-                  />
-                ))
-              )}
-            </div>
+            {visibleRisks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-2">
+                <Shield className="size-6 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">No risks found for the current filters.</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border bg-muted/20">
+                    {["Ref", "Description", "Sig", "Occ", "Score", "Zone", ""].map((h) => (
+                      <th key={h} className="text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-4 py-3">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRisks.map((risk) => {
+                    const zone = getZone(risk.significance, risk.occurence)
+                    const z    = ZONE[zone]
+                    return (
+                      <tr
+                        key={risk.id}
+                        className="group border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors cursor-pointer"
+                        onClick={() => setSelectedRisk(risk)}
+                      >
+                        <td className="px-4 py-3">
+                          <span className="text-[11px] font-semibold text-[#7B3FBE] bg-[#EDE9F8] dark:bg-accent dark:text-foreground px-2 py-0.5 rounded font-mono">
+                            {risk.risk_ref}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 max-w-[180px]">
+                          <span className="text-xs text-muted-foreground truncate block">
+                            {risk.risk_discription || "—"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3"><DotBar value={risk.significance} /></td>
+                        <td className="px-4 py-3"><DotBar value={risk.occurence} /></td>
+                        <td className="px-4 py-3">
+                          <span className={`text-sm font-semibold ${z.score}`}>{risk.score}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${z.badge}`}>
+                            {z.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedRisk(risk) }}
+                              className="flex size-7 items-center justify-center rounded-md hover:bg-[#EDE9F8] dark:hover:bg-accent text-muted-foreground hover:text-[#3B1F6A] dark:hover:text-foreground transition-colors"
+                              title="Quick view"
+                            >
+                              <ArrowRight className="size-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); navigate(`/risks/${risk.id}`) }}
+                              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors"
+                            >
+                              <ArrowUpRight className="size-3" /> View
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
@@ -500,14 +504,9 @@ function RiskMatrix() {
         <RiskDrawer
           risk={selectedRisk}
           onClose={() => setSelectedRisk(null)}
-          onNavigate={(id) => {
-            setSelectedRisk(null)
-            handleNavigate(id)
-          }}
+          onNavigate={(id) => { setSelectedRisk(null); navigate(`/risks/${id}`) }}
         />
       )}
-    </div>
+    </>
   )
 }
-
-export default RiskMatrix

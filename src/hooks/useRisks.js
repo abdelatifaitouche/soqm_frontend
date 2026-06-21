@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react"
 import { getRisks } from "@/api/endpoints/riskApi"
 
-export function useRisks() {
-  const [risks, setRisks] = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState(null)
+export function useRisks(filters = {}) {
+  const [risks, setRisks]     = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
 
   useEffect(() => {
-    getRisks()
+    setLoading(true)
+    getRisks(filters)
       .then((res) => setRisks(res.data))
       .catch((err) => setError(err))
       .finally(() => setLoading(false))
-  }, [])
+  }, [JSON.stringify(filters)])
 
   return { risks, setRisks, loading, error }
 }

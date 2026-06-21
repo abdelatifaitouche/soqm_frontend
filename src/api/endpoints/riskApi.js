@@ -2,4 +2,4 @@ import axiosClient from "../axiosClient";
 
 
 
-export const getRisks = () => axiosClient.get("/risks")
+export const getRisks  = (params = {}) => axiosClient.get("/risks", { params })

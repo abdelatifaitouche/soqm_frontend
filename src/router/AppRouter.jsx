@@ -14,6 +14,7 @@ import CreateObjective from "@/pages/objectives/CreateObjective"
 import ObjectiveDetails from "@/pages/objectives/ObjectiveDetails"
 import CreateComponent from "@/pages/isqm_components/CreateComponent"
 import RiskMatrix from "@/pages/risks/RiskMatrix"
+import ComponentDetails from "@/pages/isqm_components/ComponentDetails"
 
 export default function AppRouter() {
   return (
@@ -32,6 +33,7 @@ export default function AppRouter() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/components" element={<IsqmComponents />} />
             <Route path="/components/create" element={<CreateComponent />} />
+            <Route path="/components/:id" element={<ComponentDetails />} />
 
 
             <Route path="/users" element={<UsersPage />} />

@@ -17,6 +17,8 @@ import RiskMatrix from "@/pages/risks/RiskMatrix"
 import ComponentDetails from "@/pages/isqm_components/ComponentDetails"
 import Responses from "@/pages/risks/responses/Responses"
 import ResponseDetails from "@/pages/risks/responses/ResponseDetails"
+import CreateRisk from "@/pages/risks/CreateRisk"
+import RiskDetails from "../pages/risks/RiskDetails"
 
 export default function AppRouter() {
   return (
@@ -48,6 +50,8 @@ export default function AppRouter() {
             <Route path="/objectives/:id"     element={<ObjectiveDetails />} />
 
             <Route path="/risks"     element={<RiskMatrix />} />
+            <Route path="/risks/create"     element={<CreateRisk />} />
+            <Route path="/risks/:id"     element={<RiskDetails />} />
 
             <Route path="/responses"     element={<Responses />} />
              <Route path="/responses/:id"     element={<ResponseDetails />} />

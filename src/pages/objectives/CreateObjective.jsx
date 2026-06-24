@@ -10,7 +10,6 @@ import {
 } from "lucide-react"
 
 const EMPTY_FORM = {
-  objective_text: "",
   description:    "",
   review_date:    "",
   component_id:   "",
@@ -31,7 +30,7 @@ export default function CreateObjectivePage() {
 
   const validate = () => {
     const errors = {}
-    if (!form.objective_text.trim()) errors.objective_text = "Objective text is required."
+    if (!form.description.trim()) errors.description = "Objective description is required."
     if (!form.component_id)          errors.component_id   = "Please select a component."
     if (!form.review_date)           errors.review_date    = "Review date is required."
     return errors
@@ -157,25 +156,6 @@ export default function CreateObjectivePage() {
           <div className="flex items-center gap-2.5 mb-1">
             <FileText className="size-4 text-[#7B3FBE]" />
             <h2 className="text-sm font-semibold text-foreground">Objective Details</h2>
-          </div>
-
-          {/* Objective text */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Objective Text <span className="text-red-500">*</span>
-            </Label>
-            <textarea
-              value={form.objective_text}
-              onChange={set("objective_text")}
-              rows={4}
-              placeholder="e.g. Ensure all client engagements are reviewed for independence prior to acceptance…"
-              className={`w-full rounded-lg border bg-background px-3.5 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] resize-none transition-colors placeholder:text-muted-foreground ${
-                fieldErrors.objective_text ? "border-red-400" : "border-input"
-              }`}
-            />
-            {fieldErrors.objective_text && (
-              <p className="text-xs text-red-500">{fieldErrors.objective_text}</p>
-            )}
           </div>
 
           {/* Description */}

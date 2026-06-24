@@ -163,7 +163,7 @@ function RiskMatrix({ occ, sig }) {
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 const INITIAL = {
-  objective_id: "", component_id: "", risk_ref: "",
+  objective_id: "", component_id: "",objective_reference:"",
   risk_discription: "", occurence: "1", significance: "1", next_review_date: "",
 }
 
@@ -171,7 +171,6 @@ function validate(form) {
   const e = {}
   if (!form.objective_id)            e.objective_id     = "Select an objective."
   if (!form.component_id)            e.component_id     = "Select a component."
-  if (!form.risk_ref.trim())         e.risk_ref         = "Risk reference is required."
   if (!form.risk_discription.trim()) e.risk_discription = "Description is required."
   if (!form.next_review_date)        e.next_review_date = "Review date is required."
   return e
@@ -283,15 +282,7 @@ function CreateRisk() {
               {/* Identification card */}
               <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 space-y-4 flex-1">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Identification</p>
-                <div>
-                  <Label required>Risk Reference</Label>
-                  <div className="relative">
-                    <Hash className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
-                    <input type="text" placeholder="e.g. 1-b" value={form.risk_ref} onChange={set("risk_ref")}
-                      className={`w-full pl-9 pr-3 py-2.5 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#3B1F6A]/20 focus:border-[#3B1F6A]/50 transition-all placeholder:text-slate-400 ${errors.risk_ref ? "border-red-300" : "border-slate-200"}`} />
-                  </div>
-                  <FieldError msg={errors.risk_ref} />
-                </div>
+                
                 <div className="flex-1">
                   <Label required>Description</Label>
                   <div className="relative">

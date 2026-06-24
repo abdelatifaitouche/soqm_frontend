@@ -235,7 +235,7 @@ export default function ComponentDetails() {
                     className="group border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors cursor-pointer"
                   >
                     <td className="px-5 py-3.5 max-w-sm">
-                      <p className="text-sm text-foreground line-clamp-2 leading-snug">{obj.objective_text}</p>
+                      <p className="text-sm text-foreground line-clamp-2 leading-snug">{obj.objective_reference}</p>
                     </td>
                     <td className="px-5 py-3.5">
                       <StatusPill status={obj.status} />

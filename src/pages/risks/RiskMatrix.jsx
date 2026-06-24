@@ -300,7 +300,7 @@ export default function RiskMatrix() {
             <option value="">All objectives</option>
             {objectives.map((o) => (
               <option key={o.id} value={o.id}>
-                {o.objective_text?.slice(0, 50)}{o.objective_text?.length > 50 ? "…" : ""}
+                {o.objective_reference?.slice(0, 50)}{o.objective_reference?.length > 50 ? "…" : ""}
               </option>
             ))}
           </select>

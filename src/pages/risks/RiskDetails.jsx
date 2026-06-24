@@ -400,7 +400,7 @@ export default function RiskDetails() {
             {risk.objective ? (
               <div className="rounded-lg bg-[#EDE9F8] dark:bg-accent border border-[#C4B0E8] dark:border-border p-4 space-y-2">
                 <p className="text-xs font-medium text-[#1E0A3C] dark:text-foreground leading-snug line-clamp-3">
-                  {risk.objective.objective_text}
+                  {risk.objective.objective_reference}
                 </p>
                 <div className="flex items-center justify-between pt-1">
                   <StatusPill status={risk.objective.status} />

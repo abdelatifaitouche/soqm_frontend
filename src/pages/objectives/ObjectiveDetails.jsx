@@ -130,7 +130,6 @@ export default function ObjectiveDetails() {
 
   return (
     <div className="space-y-5">
-
       {/* Page header */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -185,9 +184,10 @@ export default function ObjectiveDetails() {
           </span>
         </div>
 
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">Objective</p>
-        <p className="text-sm leading-relaxed text-muted-foreground">{objective.objective_text}</p>
-
+        <p className="text-[16px] font-semibold  tracking-widest text-muted-foreground mb-2">Objective : {objective.objective_reference}</p>
+          <div>
+        <p className="text-sm leading-relaxed text-muted-foreground">{objective.description}</p>
+          </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5 border-t border-border">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Status</p>

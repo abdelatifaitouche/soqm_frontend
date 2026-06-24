@@ -69,7 +69,7 @@ if (loading) {
                   <tr key={objective.id} className="group border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                    
                     <td className="px-5 py-3.5 hidden md:table-cell">
-                      <span className="text-sm text-muted-foreground">{objective.objective_text}</span>
+                      <span className="text-sm text-muted-foreground">{objective.objective_reference}</span>
                     </td>
                     
                     <td className="px-5 py-3.5">

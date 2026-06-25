@@ -21,11 +21,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { deleteComponent } from "@/api/endpoints/componentsApi";
 import ComponentHeader from "./components/ComponentHeader";
 import ObjectiveTable from "../objectives/components/ObjectiveTable";
 import ComponentInfo from "./components/ComponentInfo";
+import { AuthContext } from "@/context/AuthContext";
 
 
 
@@ -75,6 +76,7 @@ export default function ComponentDetails() {
   const navigate = useNavigate();
   const { isAdmin } = useRole();
 
+
   const {
     component,
     setComponent,
@@ -116,14 +118,14 @@ export default function ComponentDetails() {
       </div>
     );
 
-  if (compError || !component)
+  if (compError){   
     return (
       <div className="flex items-center justify-center h-64 text-destructive gap-2">
         <AlertCircle className="size-4" />
         <span className="text-sm">Component not found.</span>
       </div>
     );
-
+  }
   return (
     <>
       <div className="space-y-5">

@@ -10,7 +10,7 @@ export function useComponentObjectives(componentId) {
     if (!componentId) return
 
     getComponentObjectives(componentId)
-      .then((res) => setObjectives(res.data))
+      .then((res) => setObjectives(res))
       .catch((err) => setError(err))
       .finally(() => setLoading(false))
   }, [componentId])

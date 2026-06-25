@@ -4,6 +4,8 @@ import { AlertCircle, Loader2, ArrowRight, Plus, Pencil, Trash2, ShieldCheck, Bu
 import { useObjective } from "@/hooks/useObjective"
 import { useObjectiveRisks } from "@/hooks/useObjectiveRisks"
 import { useRole } from "@/hooks/useRole"
+import ObjectiveHeader from "./components/ObjectiveHeader"
+import ObjectiveCard from "./components/ObjectiveCard"
 
 // ── Score badge ───────────────────────────────────────────────────────────────
 function ScoreBadge({ score }) {
@@ -71,38 +73,8 @@ function MiniMatrix({ significance, occurrence, score }) {
   )
 }
 
-// ── Status config ─────────────────────────────────────────────────────────────
-const STATUS_CONFIG = {
-  draft:        { label: "Draft",        cls: "bg-gray-100 text-gray-600 dark:bg-muted dark:text-muted-foreground",              dot: "bg-gray-400" },
-  approved:     { label: "Approved",     cls: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400",     dot: "bg-emerald-500" },
-  active:       { label: "Active",       cls: "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400",                 dot: "bg-blue-500" },
-  under_review: { label: "Under Review", cls: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",             dot: "bg-amber-500" },
-  revised:      { label: "Revised",      cls: "bg-purple-50 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400",         dot: "bg-purple-500" },
-  achieved:     { label: "Achieved",     cls: "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400",                 dot: "bg-teal-500" },
-  superseded:   { label: "Superseded",   cls: "bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400",         dot: "bg-orange-500" },
-  suspended:    { label: "Suspended",    cls: "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400",                     dot: "bg-red-500" },
-  archived:     { label: "Archived",     cls: "bg-gray-100 text-gray-500 dark:bg-muted dark:text-muted-foreground",              dot: "bg-gray-400" },
-}
 
-function StatusPill({ status }) {
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft
-  return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${cfg.cls}`}>
-      <span className={`size-1.5 rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
-  )
-}
 
-function formatDate(str) {
-  if (!str) return "—"
-  return new Date(str).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-}
-
-function formatDateTime(str) {
-  if (!str) return "—"
-  return new Date(str).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
-}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function ObjectiveDetails() {
@@ -110,7 +82,7 @@ export default function ObjectiveDetails() {
   const navigate    = useNavigate()
   const { isAdmin } = useRole()
 
-  const { objective, loading: objLoading, error: objError } = useObjective(id)
+  const { objective, loading: objLoading, error: objError , setOjective } = useObjective(id)
   const { risks,     loading: riskLoading, error: riskError } = useObjectiveRisks(id)
 
   const highestScore = risks?.length ? Math.max(...risks.map(r => r.score)) : 0
@@ -131,83 +103,10 @@ export default function ObjectiveDetails() {
   return (
     <div className="space-y-5">
       {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <button
-              onClick={() => navigate("/objectives")}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors border border-border bg-card px-2.5 py-1.5 rounded-lg"
-            >
-              ← Objectives
-            </button>
-            <span className="text-xs text-muted-foreground">/</span>
-            <span className="text-xs text-muted-foreground">Details</span>
-          </div>
-          <h1 className="text-xl font-semibold text-foreground tracking-tight">Objective Details</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Review objective information and manage linked risks</p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {isAdmin && (
-            <>
-              <button
-                onClick={() => navigate(`/objectives/${objective.id}/edit`)}
-                className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border border-border bg-card hover:bg-muted transition-colors text-foreground"
-              >
-                <Pencil className="size-3.5" /> Edit
-              </button>
-              <button
-                onClick={() => {/* open delete dialog */}}
-                className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/30 dark:border-red-900 dark:text-red-400 transition-colors"
-              >
-                <Trash2 className="size-3.5" /> Delete
-              </button>
-            </>
-          )}
-          <button
-            onClick={() => navigate(`/risks/create?objective_id=${objective.id}`)}
-            className="flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors"
-          >
-            <Plus className="size-3.5" /> Add risk
-          </button>
-        </div>
-      </div>
+      <ObjectiveHeader objective={objective} isAdmin={isAdmin} setOjective={setOjective}/>
 
       {/* Objective card */}
-      <div className="rounded-xl border border-border bg-card p-6">
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#EDE9F8] text-[#7B3FBE] dark:bg-accent dark:text-foreground">
-            <ShieldCheck className="size-3" /> ISQM 1.95–107
-          </span>
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full bg-[#EDE9F8] text-[#7B3FBE] dark:bg-accent dark:text-foreground">
-            <Building2 className="size-3" /> Monitoring & Remediation
-          </span>
-        </div>
-
-        <p className="text-[16px] font-semibold  tracking-widest text-muted-foreground mb-2">Objective : {objective.objective_reference}</p>
-          <div>
-        <p className="text-sm leading-relaxed text-muted-foreground">{objective.description}</p>
-          </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5 border-t border-border">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Status</p>
-            <StatusPill status={objective.status} />
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Review date</p>
-            <p className="text-sm font-medium text-foreground">{formatDate(objective.review_date)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Last updated</p>
-            <p className="text-sm font-medium text-foreground">{formatDateTime(objective.updated_at)}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Linked risks</p>
-            <p className="text-sm font-medium text-[#7B3FBE]">{risks?.length ?? 0} risks</p>
-          </div>
-        </div>
-      </div>
-
+      <ObjectiveCard objective={objective} />
       {/* Risk summary strip */}
       <div className="grid grid-cols-3 gap-3">
         {[
@@ -268,7 +167,7 @@ export default function ObjectiveDetails() {
               </tr>
             </thead>
             <tbody>
-              {risks.map((risk) => (
+              {risks?.map((risk) => (
                 <tr
                   key={risk.id}
                   className="group border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors"

@@ -8,7 +8,7 @@ export function useComponentsOptions() {
 
   useEffect(() => {
     getComponentsOptions()
-      .then((res) => setOptions(res.data))
+      .then((res) => setOptions(res))
       .catch((err) => setError(err))
       .finally(() => setLoading(false))
   }, [])

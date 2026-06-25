@@ -1,11 +1,38 @@
-import axiosClient from "../axiosClient";
+import { api } from "../api";
 
+// ===================== GET =====================
 
+export const getRisks = (params = {}) =>
+  api.get("/risks", {
+    params,
+  });
 
-export const getRisks  = (params = {}) => axiosClient.get("/risks", { params })
-export const createRisk = (data) => axiosClient.post("/risks/" , data)
-export const getRisk = (id) => axiosClient.get(`/risks/${id}`)
-export const deleteRisk = (id) => axiosClient.delete(`/risks/${id}/`)
-export const updateRisk = (id , data) => axiosClient.patch(`/risks/${id}/` , data)
+export const getRisk = (id) =>
+  api.get(`/risks/${id}`);
 
+// ===================== CREATE =====================
 
+export const createRisk = (data) =>
+  api.post("/risks/", data, {
+    meta: {
+      successMessage: "Risk created successfully",
+    },
+  });
+
+// ===================== UPDATE =====================
+
+export const updateRisk = (id, data) =>
+  api.patch(`/risks/${id}/`, data, {
+    meta: {
+      successMessage: "Risk updated successfully",
+    },
+  });
+
+// ===================== DELETE =====================
+
+export const deleteRisk = (id) =>
+  api.delete(`/risks/${id}/`, {
+    meta: {
+      successMessage: "Risk deleted successfully",
+    },
+  });

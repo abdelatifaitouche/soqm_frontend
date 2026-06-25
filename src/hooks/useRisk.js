@@ -11,8 +11,8 @@ export function useRisk (id){
     if (!id) return
     setLoading(true)
         getRisk(id)
-        .then((res)=>setRisk(res.data))
-        .catch((err)=>setError(err.data))
+        .then((res)=>setRisk(res))
+        .catch((err)=>setError(err))
         .finally(()=>{
             setLoading(false)
         })

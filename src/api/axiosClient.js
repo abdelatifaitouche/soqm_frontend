@@ -1,45 +1,51 @@
-import axios from "axios"
-import { getToken, removeToken } from "@/utils/tokenUtils"
+import axios from "axios";
+import { getToken } from "@/utils/tokenUtils";
 
 const axiosClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
-})
+});
 
-let interceptorsAttached = false
+let interceptorsAttached = false;
 
 export function setAuthInterceptors(refreshTokenFn, logoutFn) {
-  if (interceptorsAttached) return
-  interceptorsAttached = true
+  if (interceptorsAttached) return;
+  interceptorsAttached = true;
 
-  // Inject access token from localStorage on every request
+  // REQUEST: attach token
   axiosClient.interceptors.request.use((config) => {
-    const token = getToken()
-    console.log(token)
-    if (token) config.headers.Authorization = `Bearer ${token}`
-    return config
-  })
+    const token = getToken();
+    console.log("is there a token in the interceptor here ??" , token)
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
 
-  // On 401 → try refresh → retry original request → else logout
+  // RESPONSE: handle refresh only
   axiosClient.interceptors.response.use(
-    (response) => response,
+    (res) => res,
     async (error) => {
-      const originalRequest = error.config
-      if (error.response?.status === 401 && !originalRequest._retry) {
-        originalRequest._retry = true
+      const original = error.config;
+      const status = error?.response?.status;
+
+      if (status === 401 && !original?._retry) {
+        original._retry = true;
+
         try {
-          const newToken = await refreshTokenFn()
-          originalRequest.headers.Authorization = `Bearer ${newToken}`
-          return axiosClient(originalRequest)
-        } catch {
-          logoutFn()
-          return Promise.reject(error)
+          const newToken = await refreshTokenFn();
+          original.headers.Authorization = `Bearer ${newToken}`;
+          return axiosClient(original);
+        } catch (e) {
+          logoutFn();
+          return Promise.reject(e);
         }
       }
-      return Promise.reject(error)
+
+      return Promise.reject(error);
     }
-  )
+  );
 }
 
-export default axiosClient
+export default axiosClient;

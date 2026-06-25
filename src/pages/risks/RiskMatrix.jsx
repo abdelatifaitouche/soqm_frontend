@@ -212,7 +212,7 @@ export default function RiskMatrix() {
 
   // Zone counts
   const counts = { critical: 0, high: 0, low: 0 }
-  risks.forEach((r) => counts[getZone(r.significance, r.occurence)]++)
+  risks?.forEach((r) => counts[getZone(r.significance, r.occurence)]++)
 
   // Apply zone filter on top of API results
   const visibleRisks =
@@ -298,7 +298,7 @@ export default function RiskMatrix() {
             className="h-9 rounded-lg border border-input bg-card px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] transition-colors"
           >
             <option value="">All objectives</option>
-            {objectives.map((o) => (
+            {objectives?.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.objective_reference?.slice(0, 50)}{o.objective_reference?.length > 50 ? "…" : ""}
               </option>

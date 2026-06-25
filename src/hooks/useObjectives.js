@@ -8,7 +8,7 @@ export function useObjectives() {
 
   useEffect(() => {
     getObjectives()
-      .then((res) => setObjectives(res.data))
+      .then((res) => setObjectives(res))
       .catch((err) => setError(err))
       .finally(() => setLoading(false))
   }, [])

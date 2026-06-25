@@ -8,7 +8,7 @@ export function useDepts() {
 
   useEffect(() => {
     getDepts()
-      .then((res) => setDepts(res.data))
+      .then((res) => setDepts(res))
       .catch((err) => setError(err))
       .finally(() => setLoading(false))
   }, [])

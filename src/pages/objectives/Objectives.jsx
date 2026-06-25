@@ -58,14 +58,14 @@ if (loading) {
               </tr>
             </thead>
             <tbody>
-              {objectives.length === 0 ? (
+              {objectives?.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center text-sm text-muted-foreground py-16">
                     No objective found.
                   </td>
                 </tr>
               ) : (
-                objectives.map((objective) => (
+                objectives?.map((objective) => (
                   <tr key={objective.id} className="group border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                    
                     <td className="px-5 py-3.5 hidden md:table-cell">

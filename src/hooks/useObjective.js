@@ -10,7 +10,7 @@ export function useObjective(id) {
     if (!id) return
     setLoading(true)
     getObjective(id)
-      .then((res) => setObjective(res.data))
+      .then((res) => setObjective(res))
       .catch((err) => setError(err))
       .finally(() => setLoading(false))
   }, [id])

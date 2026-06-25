@@ -10,7 +10,7 @@ export function useObjectiveRisks(objectiveId) {
     if (!objectiveId) return
 
     getObjectiveRisks(objectiveId)
-      .then((res) => setRisks(res.data))
+      .then((res) => setRisks(res))
       .catch((err) => setError(err))
       .finally(() => setLoading(false))
   }, [objectiveId])

@@ -184,7 +184,7 @@ export default function IsqmComponents() {
                   <div className="flex items-center gap-2">
                     <span className={`size-1.5 rounded-full shrink-0 ${color.dot}`} />
                     <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                      Component {index + 1}
+                      Component {component.display_order}
                     </span>
                   </div>
                   <h3 className="text-sm font-medium text-[#1E0A3C] leading-snug pr-2">

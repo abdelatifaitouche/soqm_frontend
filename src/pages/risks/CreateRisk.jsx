@@ -4,13 +4,11 @@ import { useObjectivesOptions } from "@/hooks/useObjectiveOptions"
 import { useComponentsOptions } from "@/hooks/useComponentsOptions"
 import { createRisk } from "@/api/endpoints/riskApi"
 import {
-  AlertTriangle, ArrowLeft, ChevronDown,
-  Loader2, Calendar, Hash, FileText,
-  Target, Layers, CheckCircle2, XCircle,
+  AlertTriangle, ChevronDown, Loader2, Calendar, FileText,
+  Target, Layers, CheckCircle2, XCircle, X, Check, Search,
 } from "lucide-react"
 
 // ─── 3×3 matrix config ───────────────────────────────────────────────────────
-// score = occurrence × significance, max = 9
 const MATRIX_COLORS = {
   1: { bg: "bg-emerald-100", text: "text-emerald-800", label: "Low"      },
   2: { bg: "bg-emerald-100", text: "text-emerald-800", label: "Low"      },
@@ -19,6 +17,7 @@ const MATRIX_COLORS = {
   6: { bg: "bg-orange-100",  text: "text-orange-800",  label: "High"     },
   9: { bg: "bg-red-100",     text: "text-red-800",     label: "Critical" },
 }
+
 function matrixCell(o, s) {
   const score = o * s
   return MATRIX_COLORS[score] || { bg: "bg-slate-100", text: "text-slate-500", label: score }
@@ -32,20 +31,22 @@ const SCORE_BADGE = {
   6: { bg: "bg-orange-50",   text: "text-orange-700",  border: "border-orange-200",  bar: "bg-orange-500",  label: "High"     },
   9: { bg: "bg-red-50",      text: "text-red-700",     border: "border-red-200",     bar: "bg-red-500",     label: "Critical" },
 }
+
 const LEVEL_LABELS = { 1: "Low", 2: "Med", 3: "High" }
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
 
 function Label({ children, required }) {
   return (
-    <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1.5">
+    <label className="block text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-2">
       {children}{required && <span className="text-red-400 ml-0.5">*</span>}
     </label>
   )
 }
+
 function FieldError({ msg }) {
   if (!msg) return null
-  return <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><XCircle className="size-3" />{msg}</p>
+  return <p className="mt-2 text-xs text-red-500 flex items-center gap-1"><XCircle className="size-3" />{msg}</p>
 }
 
 function SelectField({ icon: Icon, placeholder, value, onChange, options, loading, error, disabled }) {
@@ -71,6 +72,148 @@ function SelectField({ icon: Icon, placeholder, value, onChange, options, loadin
   )
 }
 
+// ─── Beautiful Multi-Select Component ──────────────────────────────────────────
+
+function ObjectivesMultiSelect({ objectives, selectedIds, onChange, loading, error, disabled }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState("")
+
+  const filteredObjectives = objectives?.filter((obj) =>
+    obj.label.toLowerCase().includes(search.toLowerCase())
+  ) || []
+
+  const selectedObjectives = objectives?.filter((obj) => selectedIds.includes(obj.id)) || []
+
+  const handleToggle = (id) => {
+    if (selectedIds.includes(id)) {
+      onChange(selectedIds.filter((sid) => sid !== id))
+    } else {
+      onChange([...selectedIds, id])
+    }
+  }
+
+  return (
+    <div className="relative">
+      {/* Dropdown trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        disabled={disabled || loading}
+        className={`w-full flex items-center justify-between px-3 py-2.5 text-sm border rounded-lg bg-white transition-all ${
+          error ? "border-red-300 focus:ring-red-200" : "border-slate-200"
+        } ${disabled ? "opacity-50 cursor-not-allowed bg-slate-50" : "cursor-pointer hover:border-slate-300"} ${
+          open ? "ring-2 ring-[#3B1F6A]/20 border-[#3B1F6A]/50" : ""
+        }`}
+      >
+        <div className="flex-1 text-left">
+          {selectedObjectives.length > 0 ? (
+            <div className="flex items-center flex-wrap gap-1.5">
+              {selectedObjectives.slice(0, 2).map((obj) => (
+                <span
+                  key={obj.id}
+                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-[#3B1F6A]/10 text-[#3B1F6A] rounded-md"
+                >
+                  {obj.label}
+                  <X
+                    className="size-3 cursor-pointer hover:opacity-70"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleToggle(obj.id)
+                    }}
+                  />
+                </span>
+              ))}
+              {selectedObjectives.length > 2 && (
+                <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600 rounded-md">
+                  +{selectedObjectives.length - 2}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-slate-400">Select objectives…</span>
+          )}
+        </div>
+        {loading ? (
+          <Loader2 className="size-4 text-slate-400 animate-spin flex-shrink-0 ml-2" />
+        ) : (
+          <ChevronDown
+            className={`size-4 text-slate-400 transition-transform flex-shrink-0 ml-2 ${open ? "rotate-180" : ""}`}
+          />
+        )}
+      </button>
+
+      {/* Dropdown menu */}
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg">
+          {/* Search input */}
+          <div className="sticky top-0 p-2 border-b border-slate-100 bg-white rounded-t-lg">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search objectives…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3B1F6A]/20 focus:border-[#3B1F6A]/50"
+              />
+            </div>
+          </div>
+
+          {/* Options list */}
+          <div className="max-h-72 overflow-y-auto">
+            {filteredObjectives.length > 0 ? (
+              filteredObjectives.map((obj) => {
+                const isSelected = selectedIds.includes(obj.id)
+                return (
+                  <label
+                    key={obj.id}
+                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggle(obj.id)}
+                      className="size-4 rounded cursor-pointer accent-[#3B1F6A]"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900">{obj.label}</p>
+                    </div>
+                    {isSelected && <Check className="size-4 text-[#3B1F6A] flex-shrink-0" />}
+                  </label>
+                )
+              })
+            ) : (
+              <p className="px-3 py-6 text-center text-sm text-slate-500">
+                {search ? "No objectives found" : "No objectives available"}
+              </p>
+            )}
+          </div>
+
+          {/* Footer: selected count */}
+          {selectedObjectives.length > 0 && (
+            <div className="sticky bottom-0 px-3 py-2 border-t border-slate-100 bg-slate-50 rounded-b-lg">
+              <p className="text-xs font-medium text-slate-600">
+                {selectedObjectives.length} selected
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Close dropdown when clicking outside */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      <FieldError msg={error} />
+    </div>
+  )
+}
+
 // ─── Button picker (1-2-3) ────────────────────────────────────────────────────
 
 function ButtonPicker({ value, onChange }) {
@@ -78,7 +221,8 @@ function ButtonPicker({ value, onChange }) {
     <div className="flex gap-2">
       {[1, 2, 3].map((n) => (
         <button
-          key={n} type="button"
+          key={n}
+          type="button"
           onClick={() => onChange(String(n))}
           className={`flex-1 py-2.5 rounded-lg text-sm font-bold border transition-all duration-150 ${
             Number(value) === n
@@ -106,11 +250,11 @@ function RiskMatrix({ occ, sig }) {
 
   return (
     <div className="space-y-2">
-      {/* Grid: rows = significance (3→1), cols = occurrence (1→3) */}
       <div className="flex gap-1">
-        {/* Y-axis label */}
         <div className="flex flex-col justify-between items-center pr-1 py-1" style={{ width: 20 }}>
-          <span className="text-[8px] text-slate-400 font-semibold" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", letterSpacing: "0.1em" }}>SIGNIFICANCE</span>
+          <span className="text-[8px] text-slate-400 font-semibold" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", letterSpacing: "0.1em" }}>
+            SIGNIFICANCE
+          </span>
         </div>
         <div className="flex-1 space-y-1">
           {[3, 2, 1].map((sigRow) => (
@@ -133,7 +277,6 @@ function RiskMatrix({ occ, sig }) {
               })}
             </div>
           ))}
-          {/* X-axis numbers */}
           <div className="flex gap-1 items-center">
             <span className="w-3 shrink-0" />
             {[1, 2, 3].map((n) => (
@@ -144,7 +287,6 @@ function RiskMatrix({ occ, sig }) {
         </div>
       </div>
 
-      {/* Score result */}
       {badge && (
         <div className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 ${badge.bg} ${badge.border}`}>
           <div className={`flex flex-col items-center justify-center size-9 rounded-lg bg-white border ${badge.border} shrink-0`}>
@@ -163,16 +305,20 @@ function RiskMatrix({ occ, sig }) {
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 const INITIAL = {
-  objective_id: "", component_id: "",objective_reference:"",
-  risk_discription: "", occurence: "1", significance: "1", next_review_date: "",
+  component_id: "",
+  objectives: [],
+  risk_discription: "",
+  occurence: "1",
+  significance: "1",
+  next_review_date: "",
 }
 
 function validate(form) {
   const e = {}
-  if (!form.objective_id)            e.objective_id     = "Select an objective."
-  if (!form.component_id)            e.component_id     = "Select a component."
+  if (!form.component_id) e.component_id = "Select a component."
+  if (form.objectives.length === 0) e.objectives = "Select at least one objective."
   if (!form.risk_discription.trim()) e.risk_discription = "Description is required."
-  if (!form.next_review_date)        e.next_review_date = "Review date is required."
+  if (!form.next_review_date) e.next_review_date = "Review date is required."
   return e
 }
 
@@ -182,34 +328,51 @@ function CreateRisk() {
   const navigate = useNavigate()
   const { options: componentOptions, loading: loadingComponents } = useComponentsOptions()
 
-  const [form,       setForm]       = useState(INITIAL)
+  const [form, setForm] = useState(INITIAL)
 
   const { options: objectiveOptions, loading: loadingObjectives } = useObjectivesOptions(
     form.component_id ? { component_id: form.component_id } : {}
   )
-  const [errors,     setErrors]     = useState({})
+  const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
-  const [success,    setSuccess]    = useState(false)
-  const [apiError,   setApiError]   = useState(null)
+  const [success, setSuccess] = useState(false)
+  const [apiError, setApiError] = useState(null)
 
   const set = (field) => (e) => {
     const val = typeof e === "string" ? e : e.target.value
     setForm((p) => ({
       ...p,
       [field]: val,
-      // reset objective whenever component changes
-      ...(field === "component_id" ? { objective_id: "" } : {}),
+      ...(field === "component_id" ? { objectives: [] } : {}),
     }))
     if (errors[field]) setErrors((p) => ({ ...p, [field]: null }))
+  }
+
+  const handleObjectivesChange = (selectedIds) => {
+    setForm((p) => ({ ...p, objectives: selectedIds }))
+    if (errors.objectives) setErrors((p) => ({ ...p, objectives: null }))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     const errs = validate(form)
-    if (Object.keys(errs).length) { setErrors(errs); return }
-    setSubmitting(true); setApiError(null)
+    if (Object.keys(errs).length) {
+      setErrors(errs)
+      return
+    }
+
+    setSubmitting(true)
+    setApiError(null)
+
     try {
-      await createRisk({ ...form, occurence: Number(form.occurence), significance: Number(form.significance) })
+      await createRisk({
+        component_id: form.component_id,
+        objectives: form.objectives,
+        risk_discription: form.risk_discription,
+        occurence: Number(form.occurence),
+        significance: Number(form.significance),
+        next_review_date: form.next_review_date,
+      })
       setSuccess(true)
       setTimeout(() => navigate(-1), 1800)
     } catch (err) {
@@ -220,7 +383,7 @@ function CreateRisk() {
   }
 
   const componentsMapped = componentOptions?.map((o) => ({ id: o.id, label: o.name }))
-  const objectivesMapped = objectiveOptions?.map((o)  => ({ id: o.id, label: o.ref  }))
+  const objectivesMapped = objectiveOptions?.map((o) => ({ id: o.id, label: o.ref }))
 
   if (success) return (
     <div className="min-h-screen bg-slate-50/60 flex items-center justify-center p-6">
@@ -235,21 +398,21 @@ function CreateRisk() {
   )
 
   return (
-    <div className=" bg-slate-50/60 flex flex-col">
-      <div className="max-w-5xl  w-full flex flex-col gap-5 flex-1">
+    <div className="bg-slate-50/60 flex flex-col min-h-screen">
+      <div className="max-w-5xl w-full flex flex-col gap-5 flex-1 py-6">
 
         {/* Header */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 px-6">
           <div className="flex size-9 items-center justify-center rounded-xl bg-[#3B1F6A] shadow-sm">
             <AlertTriangle className="size-4 text-white" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">Create Risk</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Define a new risk linked to a component and objective</p>
+            <p className="text-xs text-slate-400 mt-0.5">Define a new risk linked to a component and objectives</p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-5 px-6">
 
           {/* ── Main 2-col grid ── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 flex-1">
@@ -260,36 +423,51 @@ function CreateRisk() {
               {/* Classification card */}
               <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 space-y-4">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Classification</p>
+
                 <div>
                   <Label required>Component</Label>
-                  <SelectField icon={Layers} placeholder="Select a component…"
-                    value={form.component_id} onChange={set("component_id")}
-                    options={componentsMapped} loading={loadingComponents} error={errors.component_id} />
+                  <SelectField
+                    icon={Layers}
+                    placeholder="Select a component…"
+                    value={form.component_id}
+                    onChange={set("component_id")}
+                    options={componentsMapped}
+                    loading={loadingComponents}
+                    error={errors.component_id}
+                  />
                   <FieldError msg={errors.component_id} />
                 </div>
+
                 <div>
-                  <Label required>Objective</Label>
-                  <SelectField icon={Target}
-                    placeholder={!form.component_id ? "Select a component first…" : "Select an objective…"}
-                    value={form.objective_id} onChange={set("objective_id")}
-                    options={objectivesMapped} loading={loadingObjectives && !!form.component_id}
-                    error={errors.objective_id}
-                    disabled={!form.component_id} />
-                  <FieldError msg={errors.objective_id} />
+                  <Label required>Objectives</Label>
+                  <ObjectivesMultiSelect
+                    objectives={objectivesMapped}
+                    selectedIds={form.objectives}
+                    onChange={handleObjectivesChange}
+                    loading={loadingObjectives && !!form.component_id}
+                    error={errors.objectives}
+                    disabled={!form.component_id}
+                  />
                 </div>
               </div>
 
               {/* Identification card */}
               <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 space-y-4 flex-1">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Identification</p>
-                
+
                 <div className="flex-1">
                   <Label required>Description</Label>
                   <div className="relative">
                     <FileText className="pointer-events-none absolute left-3 top-3 size-3.5 text-slate-400" />
-                    <textarea rows={4} placeholder="Describe the risk in detail…"
-                      value={form.risk_discription} onChange={set("risk_discription")}
-                      className={`w-full pl-9 pr-3 py-2.5 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#3B1F6A]/20 focus:border-[#3B1F6A]/50 transition-all placeholder:text-slate-400 resize-none ${errors.risk_discription ? "border-red-300" : "border-slate-200"}`} />
+                    <textarea
+                      rows={4}
+                      placeholder="Describe the risk in detail…"
+                      value={form.risk_discription}
+                      onChange={set("risk_discription")}
+                      className={`w-full pl-9 pr-3 py-2.5 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#3B1F6A]/20 focus:border-[#3B1F6A]/50 transition-all placeholder:text-slate-400 resize-none ${
+                        errors.risk_discription ? "border-red-300" : "border-slate-200"
+                      }`}
+                    />
                   </div>
                   <FieldError msg={errors.risk_discription} />
                 </div>
@@ -324,9 +502,15 @@ function CreateRisk() {
                   <Label required>Next Review Date</Label>
                   <div className="relative">
                     <Calendar className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
-                    <input type="date" value={form.next_review_date} onChange={set("next_review_date")}
+                    <input
+                      type="date"
+                      value={form.next_review_date}
+                      onChange={set("next_review_date")}
                       min={new Date().toISOString().split("T")[0]}
-                      className={`w-full pl-9 pr-3 py-2.5 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#3B1F6A]/20 focus:border-[#3B1F6A]/50 transition-all ${errors.next_review_date ? "border-red-300" : "border-slate-200"}`} />
+                      className={`w-full pl-9 pr-3 py-2.5 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#3B1F6A]/20 focus:border-[#3B1F6A]/50 transition-all ${
+                        errors.next_review_date ? "border-red-300" : "border-slate-200"
+                      }`}
+                    />
                   </div>
                   <FieldError msg={errors.next_review_date} />
                 </div>
@@ -343,13 +527,19 @@ function CreateRisk() {
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pb-2">
-            <button type="button" onClick={() => navigate(-1)}
-              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-colors">
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-colors"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={submitting}
-              className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-[#3B1F6A] rounded-lg hover:bg-[#2e1854] disabled:opacity-60 transition-colors shadow-sm">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-[#3B1F6A] rounded-lg hover:bg-[#2e1854] disabled:opacity-60 transition-colors shadow-sm"
+            >
               {submitting
                 ? <><Loader2 className="size-4 animate-spin" /> Creating…</>
                 : <><AlertTriangle className="size-4" /> Create Risk</>}

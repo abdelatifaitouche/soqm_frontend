@@ -91,7 +91,8 @@ const navigation = [
     defaultOpen: false,
     items: [
       { title: "Departments", href: "/departments", icon: Building2 },
-      { title: "Employees & Roles", href: "/users", icon: Users },
+      { title: "Users", href: "/users", icon: Users },
+      { title: "Employees", href: "/employees", icon: Users },
     ],
   },
   {

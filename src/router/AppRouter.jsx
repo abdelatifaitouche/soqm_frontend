@@ -19,6 +19,8 @@ import Responses from "@/pages/risks/responses/Responses"
 import ResponseDetails from "@/pages/risks/responses/ResponseDetails"
 import CreateRisk from "@/pages/risks/CreateRisk"
 import RiskDetails from "../pages/risks/RiskDetails"
+import Employees from "@/pages/employees/Employees"
+import CreateEmployee from "@/pages/employees/CreateEmployee"
 
 export default function AppRouter() {
   return (
@@ -41,6 +43,8 @@ export default function AppRouter() {
 
 
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/employees" element={<Employees />} />
+            <Route path="/employees/create" element={<CreateEmployee />} />
             <Route path="/departments" element={<Departments />} />
             {/* add more protected routes here */}
             

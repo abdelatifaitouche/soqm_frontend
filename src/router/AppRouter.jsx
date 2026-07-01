@@ -21,6 +21,7 @@ import CreateRisk from "@/pages/risks/CreateRisk"
 import RiskDetails from "../pages/risks/RiskDetails"
 import Employees from "@/pages/employees/Employees"
 import CreateEmployee from "@/pages/employees/CreateEmployee"
+import CreateResponse from "@/pages/risks/responses/CreateResponse"
 
 export default function AppRouter() {
   return (
@@ -58,6 +59,7 @@ export default function AppRouter() {
             <Route path="/risks/:id"     element={<RiskDetails />} />
 
             <Route path="/responses"     element={<Responses />} />
+            <Route path="/responses/create"     element={<CreateResponse />} />
              <Route path="/responses/:id"     element={<ResponseDetails />} />
           </Route>
         </Route>

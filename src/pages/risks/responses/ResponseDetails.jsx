@@ -327,15 +327,15 @@ function ResponseDetails() {
 
           {/* Left: details */}
           <div className="lg:col-span-3 bg-white border border-slate-200 rounded-xl px-5 py-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1">
-              Details
+            <p className="text-xs  tracking-widest text-gray-800 mb-1">
+              {response.response_description}
             </p>
             <InfoRow icon={Hash}      label="Response ID"    value={response.id}                   mono />
             <InfoRow icon={User}      label="Responsible"    value={response.responsible_employee}  mono />
             <InfoRow icon={User}      label="Created by"     value={response.created_by}            mono />
             <InfoRow
               icon={FileText}
-              label="Evidence Notes"
+              label="Internal Quality review reference"
               value={response.evidence_notes || null}
             />
           </div>

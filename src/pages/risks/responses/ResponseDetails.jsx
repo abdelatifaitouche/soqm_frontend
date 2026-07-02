@@ -281,8 +281,8 @@ function ResponseDetails() {
   const TypeIcon = type.icon
 
   return (
-    <div className="min-h-screen bg-slate-50/60 p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto space-y-5">
+    <div className="min-h-screen bg-slate-50/60">
+      <div className="max-w  space-y-5">
 
         {/* Back nav */}
         <button
@@ -306,7 +306,7 @@ function ResponseDetails() {
               </span>
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight max-w-xl leading-snug">
-              {response.response_description || <span className="italic text-slate-400 font-normal">No description</span>}
+              {response.response_ref || <span className="italic text-slate-400 font-normal">No description</span>}
             </h1>
           </div>
 

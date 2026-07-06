@@ -40,3 +40,28 @@ export const deleteComponent = (id) =>
       successMessage: "Component deleted successfully",
     },
   });
+
+
+
+export const activateComponent = (id, data) =>
+  api.patch(`/components/${id}/activate/`, data, {
+    meta: {
+      successMessage: "Component activate successfully",
+    },
+  });
+
+
+export const deactivateComponent = (id, data) =>
+  api.patch(`/components/${id}/deactivate/`, data, {
+    meta: {
+      successMessage: "Component deactivate successfully",
+    },
+  });
+
+
+export const archiveComponent = (id, data) =>
+  api.patch(`/components/${id}/archive/`, data, {
+    meta: {
+      successMessage: "Component archived successfully",
+    },
+  });

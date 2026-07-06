@@ -1,8 +1,8 @@
 import { api } from "../api";
 // ===================== GET =====================
 
-export const getObjectives = () =>
-  api.get("/objectives");
+export const getObjectives = (params = {}) =>
+  api.get("/objectives", { params })
 
 export const getObjectivesOptions = (params = {}) =>
   api.get("/objectives/options", {

@@ -7,6 +7,10 @@ export const getRisks = (params = {}) =>
     params,
   });
 
+
+export const getRiskMatrix = () => api.get("/risks/matrix/summary")
+
+
 export const getRiskOptions = (params = {}) =>
   api.get("/risks/options", {
     params,

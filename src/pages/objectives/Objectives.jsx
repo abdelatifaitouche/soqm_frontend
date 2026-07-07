@@ -7,6 +7,7 @@ import {
 } from "lucide-react"
 import { useObjectives } from "@/hooks/useObjectives"
 import { formatDate } from "@/utils/formatDate"
+import { useComponentsOptions } from "@/hooks/useComponentsOptions"
 
 // ── Status config ─────────────────────────────────────────────────────────────
 
@@ -98,14 +99,19 @@ function Pagination({ page, totalPages, total, onPageChange, loading }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function Objectives() {
-  const navigate          = useNavigate()
-  const [page, setPage]   = useState(1)
-  const [status, setStatus] = useState("")
+  const navigate                      = useNavigate()
+  const [page, setPage]               = useState(1)
+  const [status, setStatus]           = useState("")
+  const [componentId, setComponentId] = useState("")
 
-  // Reset to page 1 whenever status changes
-  const handleStatusChange = (val) => { setStatus(val); setPage(1) }
+  const handleStatusChange    = (val) => { setStatus(val);      setPage(1) }
+  const handleComponentChange = (val) => { setComponentId(val); setPage(1) }
+  const clearAll = () => { setStatus(""); setComponentId(""); setPage(1) }
 
-  const { items, total, totalPages, loading, error } = useObjectives(page, status)
+  const { items, total, totalPages, loading, error } = useObjectives(page, status, componentId)
+  const { options: components, loading: componentsLoading } = useComponentsOptions()
+
+  const isFiltered = !!(status || componentId)
 
   return (
     <div className="space-y-5">
@@ -129,7 +135,7 @@ function Objectives() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <select
           value={status}
           onChange={(e) => handleStatusChange(e.target.value)}
@@ -141,12 +147,24 @@ function Objectives() {
           ))}
         </select>
 
-        {status && (
+        <select
+          value={componentId}
+          onChange={(e) => handleComponentChange(e.target.value)}
+          disabled={componentsLoading}
+          className="h-9 rounded-lg border border-input bg-card px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] transition-colors cursor-pointer disabled:opacity-50"
+        >
+          <option value="">All components</option>
+          {components?.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+
+        {isFiltered && (
           <button
-            onClick={() => handleStatusChange("")}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={clearAll}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
           >
-            <X className="size-3" /> Clear
+            <X className="size-3" /> Clear filters
           </button>
         )}
       </div>
@@ -175,7 +193,7 @@ function Objectives() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/20">
-                {["Ref", "Status", "Review date",  "component", "view"].map((h) => (
+                {["Ref", "Status", "Review date", "Component", ""].map((h) => (
                   <th
                     key={h}
                     className="text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-5 py-3 whitespace-nowrap"
@@ -188,7 +206,7 @@ function Objectives() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-16 text-center">
+                  <td colSpan={5} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
                         <CircleDashed className="size-4 text-muted-foreground/40" />
@@ -233,12 +251,11 @@ function Objectives() {
                         <span className="text-muted-foreground/40 text-xs">—</span>
                       )}
                     </td>
+
+                    {/* Component */}
                     <td className="px-5 py-3.5">
                       {obj.component_name ? (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Calendar className="size-3 shrink-0" />
-                          {obj.component_name}
-                        </div>
+                        <span className="text-xs text-muted-foreground">{obj.component_name}</span>
                       ) : (
                         <span className="text-muted-foreground/40 text-xs">—</span>
                       )}

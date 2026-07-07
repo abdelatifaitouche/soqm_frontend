@@ -1,24 +1,27 @@
 import { useState, useEffect } from "react"
 import { getObjectives } from "@/api/endpoints/objectivesApi"
 
-export function useObjectives(page = 1, status = "") {
+export function useObjectives(page = 1, status = "", componentId = "") {
   const [items, setItems]       = useState([])
   const [total, setTotal]       = useState(0)
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
 
-  const SIZE = 10 // fixed by backend
+  const SIZE = 10
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
 
-    const params = { page, ...(status && { status }) }
+    const params = {
+      page,
+      ...(status      && { status }),
+      ...(componentId && { component_id: componentId }),
+    }
     getObjectives(params)
       .then((res) => {
         if (cancelled) return
-        // axios: res.data is the body
         const body = res
         setItems(body.items ?? [])
         setTotal(body.total ?? 0)
@@ -27,7 +30,7 @@ export function useObjectives(page = 1, status = "") {
       .finally(() => { if (!cancelled) setLoading(false) })
 
     return () => { cancelled = true }
-  }, [page, status])
+  }, [page, status, componentId])
 
   const totalPages = Math.ceil(total / SIZE) || 1
 

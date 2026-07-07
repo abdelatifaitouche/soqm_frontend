@@ -1,66 +1,56 @@
 import { useState, useEffect } from "react"
 import { getRisks } from "@/api/endpoints/riskApi"
- 
-// ============================================================
-// HOOK: useRisks with pagination
-// ============================================================
- 
-export function useRisks(filters = {}, page = 1, limit = 10) {
-  const [risks, setRisks] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [pagination, setPagination] = useState({
-    total: 0,
-    page: 1,
-    limit: 10,
-    total_pages: 0,
-  })
- 
+
+export function useRisks(
+  filters = {},   // { score, status, component_id, objective_id }
+  page = 1,
+  size = 10,
+  orderBy = { column: "created_at", direction: "desc" }
+) {
+  const [items, setItems]       = useState([])
+  const [total, setTotal]       = useState(0)
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
+
+  const totalPages = Math.ceil(total / size) || 1
+
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
     setError(null)
- 
-    // Build params: include filters + pagination
+
+    // Only include filter keys that have a real value
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters).filter(([, v]) => v !== "" && v != null)
+    )
+
     const params = {
-      ...filters,
+      ...cleanFilters,
       page,
-      limit,
+      size,
+      column:    orderBy.column,
+      direction: orderBy.direction,
     }
- 
+
     getRisks(params)
       .then((res) => {
-        // Handle both response structures:
-        // 1. { data: [...], pagination: {...} }
-        // 2. { risks: [...], total: 0, ... }
-        if (res.data) {
-          setRisks(res.data)
-          setPagination(res.pagination || {})
-        } else if (res.risks) {
-          setRisks(res.risks)
-          setPagination({
-            total: res.total || 0,
-            page: res.page || 1,
-            limit: res.limit || 10,
-            total_pages: Math.ceil((res.total || 0) / (res.limit || 10)),
-          })
-        } else {
-          // Assume res is array of risks
-          setRisks(Array.isArray(res) ? res : [])
-          setPagination({
-            total: Array.isArray(res) ? res.length : 0,
-            page: 1,
-            limit,
-            total_pages: 1,
-          })
-        }
+        if (cancelled) return
+        // axios wraps body in res.data; backend returns { total, page, size, items }
+        const body = res
+        setItems(body.items ?? [])
+        setTotal(body.total ?? 0)
       })
       .catch((err) => {
-        setError(err)
-        setRisks([])
-        setPagination({ total: 0, page: 1, limit, total_pages: 0 })
+        if (!cancelled) {
+          setError(err)
+          setItems([])
+          setTotal(0)
+        }
       })
-      .finally(() => setLoading(false))
-  }, [JSON.stringify(filters), page, limit])
- 
-  return { risks, setRisks, loading, error, pagination }
+      .finally(() => { if (!cancelled) setLoading(false) })
+
+    return () => { cancelled = true }
+  }, [JSON.stringify(filters), page, size, orderBy.column, orderBy.direction])
+
+  return { items, total, totalPages, loading, error }
 }

@@ -22,6 +22,7 @@ import RiskDetails from "../pages/risks/RiskDetails"
 import Employees from "@/pages/employees/Employees"
 import CreateEmployee from "@/pages/employees/CreateEmployee"
 import CreateResponse from "@/pages/risks/responses/CreateResponse"
+import Risks from "@/pages/risks/Risks"
 
 export default function AppRouter() {
   return (
@@ -54,7 +55,7 @@ export default function AppRouter() {
             <Route path="/objectives/create" element={<CreateObjective />} />
             <Route path="/objectives/:id"     element={<ObjectiveDetails />} />
 
-            <Route path="/risks"     element={<RiskMatrix />} />
+            <Route path="/risks"     element={<Risks />} />
             <Route path="/risks/create"     element={<CreateRisk />} />
             <Route path="/risks/:id"     element={<RiskDetails />} />
 

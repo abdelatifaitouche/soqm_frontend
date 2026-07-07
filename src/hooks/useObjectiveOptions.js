@@ -8,7 +8,7 @@ export function useObjectivesOptions(filters = {}) {
 
   useEffect(() => {
     getObjectivesOptions(filters)
-      .then((res) => setOptions(res))
+      .then((res) => {setOptions(res) , console.log(res)})
       .catch((err) => setError(err))
       .finally(() => setLoading(false))
   }, [JSON.stringify(filters)])

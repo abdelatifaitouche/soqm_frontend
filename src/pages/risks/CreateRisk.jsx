@@ -78,8 +78,10 @@ function ObjectivesMultiSelect({ objectives, selectedIds, onChange, loading, err
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
 
+  // `objectives` is the already-mapped { id, label } shape from CreateRisk,
+  // so filter/display on `label` — not the raw API field name.
   const filteredObjectives = objectives?.filter((obj) =>
-    obj.label.toLowerCase().includes(search.toLowerCase())
+    (obj.label ?? "").toLowerCase().includes(search.toLowerCase())
   ) || []
 
   const selectedObjectives = objectives?.filter((obj) => selectedIds.includes(obj.id)) || []
@@ -383,7 +385,8 @@ function CreateRisk() {
   }
 
   const componentsMapped = componentOptions?.map((o) => ({ id: o.id, label: o.name }))
-  const objectivesMapped = objectiveOptions?.map((o) => ({ id: o.id, label: o.ref }))
+  // Fixed: the API payload field is `objective_reference`, not `ref`.
+  const objectivesMapped = objectiveOptions?.map((o) => ({ id: o.id, label: o.objective_reference }))
 
   if (success) return (
     <div className="min-h-screen bg-slate-50/60 flex items-center justify-center p-6">
@@ -399,7 +402,7 @@ function CreateRisk() {
 
   return (
     <div className="bg-slate-50/60 flex flex-col min-h-screen">
-      <div className="max-w-5xl w-full flex flex-col gap-5 flex-1 py-6">
+      <div className="max-w w-full flex flex-col gap-5 flex-1 py-6">
 
         {/* Header */}
         <div className="flex items-center gap-3 px-6">

@@ -23,6 +23,7 @@ import Employees from "@/pages/employees/Employees"
 import CreateEmployee from "@/pages/employees/CreateEmployee"
 import CreateResponse from "@/pages/risks/responses/CreateResponse"
 import Risks from "@/pages/risks/Risks"
+import Matrix from "@/pages/risks/Matrix"
 
 export default function AppRouter() {
   return (

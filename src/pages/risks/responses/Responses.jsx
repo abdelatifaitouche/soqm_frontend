@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useResponses } from "@/hooks/useResponses";
 import { useComponentsOptions } from "@/hooks/useComponentsOptions";
-import { ShieldCheck, Plus, XCircle, AlertCircle } from "lucide-react";
+import { ShieldCheck, Plus, XCircle, AlertCircle, ChevronLeft, ChevronRight, ArrowDownUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ResponsesList from "./ResponsesList";
 
@@ -47,6 +47,13 @@ const FREQUENCY_OPTIONS = [
   { value: "event_driven", label: "Event driven" },
 ];
 
+// Backend only supports order_by=created_at, so we don't expose "sort by field" —
+// just the direction, phrased in terms a user cares about (not the column name).
+const SORT_OPTIONS = [
+  { value: "desc", label: "Latest first" },
+  { value: "asc",  label: "Earliest first" },
+];
+
 // ─── Shared select style ──────────────────────────────────────────────────────
 
 const SELECT_CLS =
@@ -68,6 +75,58 @@ function StatCard({ label, value, dot }) {
   );
 }
 
+// ─── Pagination ───────────────────────────────────────────────────────────────
+
+function Pagination({ page, totalPages, hasNextPage, hasPrevPage, onChange }) {
+  if (totalPages <= 1) return null;
+
+  // Keep the page list short: always show first, last, current ±1, collapse the rest with "…"
+  const pages = useMemo(() => {
+    const set = new Set([1, totalPages, page - 1, page, page + 1]);
+    return [...set].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+  }, [page, totalPages]);
+
+  return (
+    <div className="flex items-center justify-center gap-1 pt-2">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={!hasPrevPage}
+        className="flex items-center justify-center size-8 rounded-lg border border-input bg-card text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card transition-colors"
+      >
+        <ChevronLeft className="size-3.5" />
+      </button>
+
+      {pages.map((p, i) => {
+        const prev = pages[i - 1];
+        const gap = prev !== undefined && p - prev > 1;
+        return (
+          <React.Fragment key={p}>
+            {gap && <span className="px-1.5 text-xs text-muted-foreground/50">…</span>}
+            <button
+              onClick={() => onChange(p)}
+              className={`flex items-center justify-center size-8 rounded-lg text-xs font-semibold transition-colors ${
+                p === page
+                  ? "bg-[#3B1F6A] text-white"
+                  : "border border-input bg-card text-muted-foreground hover:text-foreground hover:bg-muted/40"
+              }`}
+            >
+              {p}
+            </button>
+          </React.Fragment>
+        );
+      })}
+
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={!hasNextPage}
+        className="flex items-center justify-center size-8 rounded-lg border border-input bg-card text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card transition-colors"
+      >
+        <ChevronRight className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 function Responses() {
@@ -79,6 +138,8 @@ function Responses() {
   const [executionFilter, setExecutionFilter] = useState("");
   // Store component_id as a string to avoid number/string mismatch with the backend
   const [componentFilter, setComponentFilter] = useState("");
+  const [sortDirection,   setSortDirection]   = useState("desc"); // latest first by default
+  const [page, setPage] = useState(1);
 
   const { options: components, loading: componentsLoading } = useComponentsOptions();
 
@@ -90,11 +151,25 @@ function Responses() {
     ...(componentFilter && { component_id:   componentFilter }),
     ...(frequencyFilter && { frequency:      frequencyFilter }),
     ...(executionFilter && { execution_type: executionFilter }),
-  }), [statusFilter, componentFilter, frequencyFilter, executionFilter]);
+    // order_by only ever supports "created_at" on the backend, so it's not a
+    // user-facing choice — always sent alongside whichever direction is picked.
+    order_by:  "created_at",
+    direction: sortDirection,
+  }), [statusFilter, componentFilter, frequencyFilter, executionFilter, sortDirection]);
 
-  const { responses, loading, error } = useResponses(backendFilters);
+  // Any filter/sort change invalidates the current page — e.g. page 3 of "all"
+  // may not exist once you're down to a filtered set of 4 items.
+  useEffect(() => {
+    setPage(1);
+  }, [backendFilters]);
 
-  // type is client-side only (not in backend ResponseFilters)
+  const {
+    responses, loading, error,
+    total, totalPages, hasNextPage, hasPrevPage,
+  } = useResponses(backendFilters, page);
+
+  // type is client-side only (not in backend ResponseFilters) — applied on top
+  // of the already-paginated page of results returned by the backend.
   const visible = typeFilter
     ? responses?.filter((r) => r.response_type === typeFilter)
     : responses;
@@ -111,7 +186,8 @@ function Responses() {
     setExecutionFilter("");
   };
 
-  // Counts always from the full (backend-filtered) set, before type filter
+  // Counts reflect only the current page (backend doesn't return status
+  // breakdowns for the full filtered set), so label them accordingly.
   const counts = {
     effective:   responses?.filter((r) => r.status === "EFFECTIVE").length   ?? 0,
     implemented: responses?.filter((r) => r.status === "IMPLEMENTED").length ?? 0,
@@ -128,7 +204,7 @@ function Responses() {
           <p className="text-sm text-muted-foreground mt-0.5">
             {loading
               ? "Loading…"
-              : `${responses?.length ?? 0} control measure${responses?.length !== 1 ? "s" : ""} registered`}
+              : `${total} control measure${total !== 1 ? "s" : ""} registered`}
           </p>
         </div>
         <button
@@ -139,14 +215,14 @@ function Responses() {
         </button>
       </div>
 
-      {/* Stats strip */}
+      {/* Stats strip — reflects current page only */}
       <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Effective"   value={counts.effective}   dot="bg-emerald-400" />
-        <StatCard label="Implemented" value={counts.implemented} dot="bg-blue-400" />
-        <StatCard label="Draft"       value={counts.draft}       dot="bg-slate-300" />
+        <StatCard label="Effective (page)"   value={counts.effective}   dot="bg-emerald-400" />
+        <StatCard label="Implemented (page)" value={counts.implemented} dot="bg-blue-400" />
+        <StatCard label="Draft (page)"       value={counts.draft}       dot="bg-slate-300" />
       </div>
 
-      {/* Filter bar */}
+      {/* Filter + sort bar */}
       <div className="flex items-center gap-2 flex-wrap">
 
         {/* Status */}
@@ -211,11 +287,25 @@ function Responses() {
         {isFiltered && (
           <button
             onClick={clearAll}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors ml-auto"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <XCircle className="size-3.5" /> Clear filters
           </button>
         )}
+
+        {/* Sort — pushed to the far right, visually separated from the filters */}
+        <div className="ml-auto flex items-center gap-1.5">
+          <ArrowDownUp className="size-3.5 text-muted-foreground" />
+          <select
+            value={sortDirection}
+            onChange={(e) => setSortDirection(e.target.value)}
+            className={SELECT_CLS}
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Error */}
@@ -226,16 +316,27 @@ function Responses() {
         </div>
       )}
 
-      {/* Table — key forces a clean remount when filters change so stale rows don't linger */}
+      {/* Table — key forces a clean remount when filters/sort/page change so stale rows don't linger */}
       <ResponsesList
-        key={`${statusFilter}|${typeFilter}|${componentFilter}|${frequencyFilter}|${executionFilter}`}
+        key={`${statusFilter}|${typeFilter}|${componentFilter}|${frequencyFilter}|${executionFilter}|${sortDirection}|${page}`}
         responses={visible}
       />
+
+      {/* Pagination */}
+      {!loading && !error && total > 0 && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          hasNextPage={hasNextPage}
+          hasPrevPage={hasPrevPage}
+          onChange={setPage}
+        />
+      )}
 
       {/* Footer count */}
       {!loading && (visible?.length ?? 0) > 0 && (
         <p className="text-center text-xs text-muted-foreground pb-2">
-          Showing {visible.length} response{visible.length !== 1 ? "s" : ""}
+          Showing {visible.length} of {total} response{total !== 1 ? "s" : ""} · page {page} of {totalPages}
           {isFiltered ? " · filtered" : ""}
         </p>
       )}

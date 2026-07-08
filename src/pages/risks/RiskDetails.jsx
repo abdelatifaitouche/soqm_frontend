@@ -14,35 +14,48 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet"
+import {
   ArrowLeft,
   Loader2,
   AlertCircle,
-  Shield,
   Target,
   Pencil,
   Trash2,
   Save,
-  X,
   Calendar,
   ArrowRight,
-  Info,
+  Check,
+  Eye,
 } from "lucide-react"
 
 // ============================================================
 // CONSTANTS
 // ============================================================
 
-const SIG_LABELS = { 3: "High", 2: "Medium", 1: "Low" }
-const OCC_LABELS = { 3: "High", 2: "Medium", 1: "Low" }
+const SIG_LABELS = { 1: "Low", 2: "Medium", 3: "High" }
+const OCC_LABELS = { 1: "Low", 2: "Medium", 3: "High" }
 
-const RISK_STATUSES = [
-  "identified",
-  "assessed",
-  "mitigated",
-  "accepted",
-  "closed",
-  "transferred",
-]
+// Matches backend RiskStatus enum
+const MAIN_FLOW = ["identified", "assessed", "treatment_planned", "mitigated", "closed"]
+
+const STATUS_LABEL = {
+  identified: "Identified",
+  assessed: "Assessed",
+  treatment_planned: "Treatment planned",
+  mitigated: "Mitigated",
+  accepted: "Accepted",
+  closed: "Closed",
+  under_review: "Under review",
+}
+
+const ALL_STATUSES = Object.keys(STATUS_LABEL)
 
 function getZone(significance, occurrence) {
   const score = significance * occurrence
@@ -51,178 +64,267 @@ function getZone(significance, occurrence) {
   return "low"
 }
 
-const ZONE_CONFIG = {
-  critical: {
-    label: "Critical",
-    dot: "bg-red-500",
-    text: "text-red-700 dark:text-red-400",
-    bg: "bg-red-50 dark:bg-red-950/20",
-    border: "border-red-200 dark:border-red-900",
-    circle: "text-red-600",
-  },
-  high: {
-    label: "High",
-    dot: "bg-amber-500",
-    text: "text-amber-700 dark:text-amber-400",
-    bg: "bg-amber-50 dark:bg-amber-950/20",
-    border: "border-amber-200 dark:border-amber-900",
-    circle: "text-amber-600",
-  },
-  low: {
-    label: "Low",
-    dot: "bg-slate-400",
-    text: "text-slate-700 dark:text-slate-400",
-    bg: "bg-slate-50 dark:bg-slate-900/20",
-    border: "border-slate-200 dark:border-slate-800",
-    circle: "text-slate-500",
-  },
-}
-
-const STATUS_STYLE = {
-  identified: "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900",
-  assessed: "bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-900",
-  mitigated: "bg-slate-50 dark:bg-slate-950/30 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800",
-  accepted: "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900",
-  closed: "bg-slate-100 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-800",
-  active: "bg-slate-50 dark:bg-slate-950/30 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800",
+const ZONE = {
+  critical: { label: "Critical", dot: "bg-red-500", text: "text-red-600" },
+  high: { label: "High", dot: "bg-amber-500", text: "text-amber-600" },
+  low: { label: "Low", dot: "bg-emerald-500", text: "text-emerald-600" },
 }
 
 function formatDate(str) {
   if (!str) return "—"
-  return new Date(str).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
+  return new Date(str).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 }
 
 // ============================================================
-// COMPONENTS
+// WORKFLOW STEPPER
 // ============================================================
 
-function ScoreRing({ score, zone }) {
-  const config = ZONE_CONFIG[zone]
-  const circumference = 2 * Math.PI * 40
-  const offset = circumference - (score / 9) * circumference
+function WorkflowStepper({ status }) {
+  const isSideState = status === "accepted" || status === "under_review"
+  const currentIndex = MAIN_FLOW.indexOf(status)
+  // accepted terminates the flow early (in place of "closed"); under_review sits mid-flow at "assessed"
+  const effectiveIndex =
+    status === "accepted" ? MAIN_FLOW.length - 1 : status === "under_review" ? 1 : currentIndex
 
   return (
-    <div className="relative w-28 h-28 flex items-center justify-center">
-      <svg className="absolute -rotate-90" width="120" height="120">
-        <circle
-          cx="60"
-          cy="60"
-          r="40"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="3"
-          className="text-slate-200 dark:text-slate-700"
-        />
-        <circle
-          cx="60"
-          cy="60"
-          r="40"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="3"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className={`transition-all duration-500 ${config.circle}`}
-        />
-      </svg>
-      <div className="text-center z-10">
-        <p className="text-2xl font-bold text-slate-900 dark:text-white">{score}</p>
-        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">/ 9</p>
+    <div className="space-y-3">
+      <div className="flex items-center">
+        {MAIN_FLOW.map((step, i) => {
+          const isLast = i === MAIN_FLOW.length - 1
+          const done = i < effectiveIndex
+          const active = i === effectiveIndex
+          const label = isLast && status === "accepted" ? "Accepted" : STATUS_LABEL[step]
+
+          return (
+            <div key={step} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center gap-2">
+                <div
+                  className={`flex items-center justify-center size-7 rounded-full text-[11px] font-semibold transition-colors ${
+                    done
+                      ? "bg-violet-600 text-white"
+                      : active
+                        ? "bg-violet-50 dark:bg-violet-500/10 text-violet-600 ring-2 ring-violet-600"
+                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
+                  }`}
+                >
+                  {done ? <Check className="size-3.5" /> : i + 1}
+                </div>
+                <span
+                  className={`text-[10px] font-medium whitespace-nowrap ${
+                    active ? "text-violet-600" : done ? "text-zinc-900 dark:text-white" : "text-zinc-400"
+                  }`}
+                >
+                  {label}
+                </span>
+              </div>
+              {!isLast && (
+                <div
+                  className={`h-0.5 flex-1 mx-2 -mt-4 rounded-full transition-colors ${
+                    done ? "bg-violet-600" : "bg-zinc-200 dark:bg-zinc-800"
+                  }`}
+                />
+              )}
+            </div>
+          )
+        })}
       </div>
+
+      {isSideState && (
+        <div className="flex items-center gap-1.5 pt-1">
+          <span className="size-1.5 rounded-full bg-violet-500 animate-pulse" />
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+            Currently marked as <span className="font-medium text-zinc-700 dark:text-zinc-300">{STATUS_LABEL[status]}</span>
+          </span>
+        </div>
+      )}
     </div>
   )
 }
 
-function StatusBadge({ status }) {
-  const style = STATUS_STYLE[status?.toLowerCase()] || STATUS_STYLE.identified
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${style}`}>
-      <span className="w-1 h-1 rounded-full bg-current opacity-60" />
-      {status?.replace(/_/g, " ")}
-    </span>
-  )
-}
+// ============================================================
+// COMPONENT HOVER CARD
+// ============================================================
 
 function ComponentHoverCard({ component }) {
   return (
     <div className="group relative">
-      <div className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors border border-slate-200 dark:border-slate-700">
-        <Shield className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-            {component.name}
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">{component.isqm_reference}</p>
-        </div>
-        <Info className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300" />
+      <div className="flex items-center justify-between gap-2 py-2 cursor-default border-b border-transparent hover:border-zinc-200 dark:hover:border-zinc-800 transition-colors">
+        <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">{component.name}</p>
+        <Eye className="size-3.5 text-zinc-300 group-hover:text-zinc-500 transition-colors shrink-0" />
       </div>
 
-      {/* Hover Card */}
-      <div className="absolute left-0 top-full mt-2 w-72 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none group-hover:pointer-events-auto">
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-4 space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-700 shrink-0">
-              <Shield className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">{component.name}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{component.isqm_reference}</p>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-            <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-3">
-              {component.description || "No description"}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 pt-2 text-[10px] text-slate-500">
-            <span className={`w-2 h-2 rounded-full ${component.status === "ACTIVE" ? "bg-slate-400" : "bg-slate-300"}`} />
-            <span>{component.status}</span>
-          </div>
+      <div className="absolute left-0 top-full mt-2 w-72 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 pointer-events-none group-hover:pointer-events-auto">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg p-4">
+          <p className="text-sm font-semibold text-zinc-900 dark:text-white mb-2">{component.name}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed line-clamp-4">
+            {component.description || "No description"}
+          </p>
         </div>
       </div>
     </div>
   )
 }
 
-function ObjectiveCard({ objective, onNavigate }) {
-  const ref = objective.objective_reference || objective.ref || "Unknown"
-  const status = objective.status || "active"
-  const id = objective.objective_id || objective.id
+// ============================================================
+// EDIT DRAWER
+// ============================================================
+
+function EditDrawer({ open, onOpenChange, risk, onSaved }) {
+  const [form, setForm] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+
+  // (Re)initialize form whenever the drawer opens with fresh risk data
+  if (open && !form) {
+    setForm({
+      risk_discreption: risk.risk_discreption ?? "",
+      significance: risk.significance,
+      occurence: risk.occurence,
+      status: risk.status,
+      next_review_date: risk.next_review_date ?? "",
+      date_last_assessed: risk.date_last_assessed ?? "",
+    })
+  }
+
+  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
+
+  const handleClose = (val) => {
+    if (!val) setForm(null)
+    onOpenChange(val)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError("")
+    try {
+      const res = await updateRisk(risk.id, {
+        ...form,
+        significance: Number(form.significance),
+        occurence: Number(form.occurence),
+      })
+      onSaved(res.data)
+      handleClose(false)
+    } catch (err) {
+      setError(err?.response?.data?.detail ?? "Failed to save changes.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!form) return null
 
   return (
-    <div className="group relative rounded-lg border border-slate-200 dark:border-slate-700 p-4 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-sm transition-all">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 shrink-0 mt-0.5">
-            <Target className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+    <Sheet open={open} onOpenChange={handleClose}>
+      <SheetContent className="sm:max-w-md flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="font-mono">{risk.risk_ref}</SheetTitle>
+          <SheetDescription>Update risk assessment details</SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-1 space-y-5 py-2">
+          <div>
+            <label className="text-xs font-medium text-zinc-500 mb-1.5 block">Description</label>
+            <textarea
+              value={form.risk_discreption}
+              onChange={set("risk_discreption")}
+              rows={4}
+              className="w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-white outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white resize-none"
+            />
           </div>
-          <div className="flex-1 min-w-0 py-0.5">
-            <p className="text-sm font-bold text-slate-900 dark:text-white">
-              Objective <span className="font-mono">{ref}</span>
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </p>
+
+          <div>
+            <label className="text-xs font-medium text-zinc-500 mb-1.5 block">Status</label>
+            <select
+              value={form.status}
+              onChange={set("status")}
+              className="w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-white outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white"
+            >
+              {ALL_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-zinc-500 mb-1.5 block">Significance</label>
+              <select
+                value={form.significance}
+                onChange={set("significance")}
+                className="w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-600"
+              >
+                {[1, 2, 3].map((v) => (
+                  <option key={v} value={v}>
+                    {v} — {SIG_LABELS[v]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 mb-1.5 block">Occurrence</label>
+              <select
+                value={form.occurence}
+                onChange={set("occurence")}
+                className="w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-white outline-none focus:ring-1 focus:ring-violet-600"
+              >
+                {[1, 2, 3].map((v) => (
+                  <option key={v} value={v}>
+                    {v} — {OCC_LABELS[v]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-zinc-500 mb-1.5 block">Last assessed</label>
+              <input
+                type="date"
+                value={form.date_last_assessed || ""}
+                onChange={set("date_last_assessed")}
+                className="w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-white outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 mb-1.5 block">Next review</label>
+              <input
+                type="date"
+                value={form.next_review_date || ""}
+                onChange={set("next_review_date")}
+                className="w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-white outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white"
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 text-xs text-red-600">
+              <AlertCircle className="size-3.5 shrink-0" />
+              {error}
+            </div>
+          )}
         </div>
-        {id && (
+
+        <SheetFooter>
           <button
-            onClick={() => onNavigate(id)}
-            className="flex items-center justify-center size-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors shrink-0"
-            title="Navigate to objective details"
+            onClick={() => handleClose(false)}
+            className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
           >
-            <ArrowRight className="w-4 h-4" />
+            Cancel
           </button>
-        )}
-      </div>
-    </div>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-zinc-900 dark:bg-white dark:text-zinc-900 rounded-md hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            Save changes
+          </button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -236,50 +338,9 @@ export default function RiskDetails() {
   const { isAdmin } = useRole()
   const { risk, setRisk, loading, error } = useRisk(id)
 
-  const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState("")
+  const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
-
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
-
-  const startEdit = () => {
-    setForm({
-      risk_ref: risk.risk_ref,
-      risk_discription: risk.risk_discription ?? "",
-      significance: risk.significance,
-      occurence: risk.occurence,
-      status: risk.status,
-      date_identified: risk.date_identified ?? "",
-      next_review_date: risk.next_review_date ?? "",
-    })
-    setSaveError("")
-    setEditing(true)
-  }
-
-  const handleSave = async () => {
-    if (!form.risk_ref.trim()) {
-      setSaveError("Risk reference is required.")
-      return
-    }
-    setSaving(true)
-    setSaveError("")
-    try {
-      const res = await updateRisk(id, {
-        ...form,
-        significance: Number(form.significance),
-        occurence: Number(form.occurence),
-      })
-      setRisk(res.data)
-      setEditing(false)
-    } catch (err) {
-      setSaveError(err?.response?.data?.detail ?? "Failed to save.")
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -293,8 +354,8 @@ export default function RiskDetails() {
 
   if (loading)
     return (
-      <div className="flex items-center justify-center h-64 gap-2 text-slate-500">
-        <Loader2 className="w-5 h-5 animate-spin" />
+      <div className="flex items-center justify-center h-64 gap-2 text-zinc-400">
+        <Loader2 className="size-4 animate-spin" />
         <span className="text-sm">Loading…</span>
       </div>
     )
@@ -302,375 +363,195 @@ export default function RiskDetails() {
   if (error || !risk)
     return (
       <div className="flex items-center justify-center h-64 gap-2 text-red-600">
-        <AlertCircle className="w-5 h-5" />
+        <AlertCircle className="size-4" />
         <span className="text-sm">Risk not found</span>
       </div>
     )
 
   const zone = getZone(risk.significance, risk.occurence)
-  const zoneConfig = ZONE_CONFIG[zone]
-  const editSig = editing ? Number(form.significance) : risk.significance
-  const editOcc = editing ? Number(form.occurence) : risk.occurence
-  const liveScore = editSig * editOcc
+  const z = ZONE[zone]
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/risks")}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </button>
-            <span className="text-sm text-slate-400">•</span>
-            <span className="text-sm font-mono font-bold text-slate-700 dark:text-slate-300">
-              {risk.risk_ref}
-            </span>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => navigate("/risks")}
+            className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+          >
+            <ArrowLeft className="size-4" />
+            Risks
+          </button>
+
+          {isAdmin && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setEditOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-md transition-colors"
+              >
+                <Pencil className="size-3.5" />
+                Edit
+              </button>
+              <button
+                onClick={() => setDeleteOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-md transition-colors"
+              >
+                <Trash2 className="size-3.5" />
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-2xl font-semibold font-mono text-zinc-900 dark:text-white">
+                {risk.risk_ref}
+              </h1>
+              <span className="flex items-center gap-1.5 text-sm">
+                <span className={`size-1.5 rounded-full ${z.dot}`} />
+                <span className={`font-medium ${z.text}`}>{z.label} risk</span>
+              </span>
+            </div>
+            <p className="text-sm text-zinc-500">
+              Identified {formatDate(risk.date_identified)}
+              {risk.date_last_assessed && ` · Last assessed ${formatDate(risk.date_last_assessed)}`}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            {isAdmin && !editing && (
-              <>
-                <button
-                  onClick={startEdit}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                >
-                  <Pencil className="w-4 h-4" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => setDeleteOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900/50 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </button>
-              </>
-            )}
-            {isAdmin && editing && (
-              <>
-                <button
-                  onClick={() => setEditing(false)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 dark:hover:bg-slate-600 rounded-lg transition-colors disabled:opacity-60"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save
-                </button>
-              </>
+          <div className="text-right shrink-0">
+            <p className="text-3xl font-semibold text-zinc-900 dark:text-white leading-none">
+              {risk.score}
+              <span className="text-base text-zinc-400 font-normal">/9</span>
+            </p>
+            {risk.residual_score != null && (
+              <p className="text-xs text-zinc-400 mt-1">Residual {risk.residual_score}</p>
             )}
           </div>
         </div>
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: Details */}
-          <div className="lg:col-span-2 space-y-5">
-            {/* Risk Card */}
-            <div className={`rounded-xl border ${zoneConfig.border} ${zoneConfig.bg} p-6 space-y-4`}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  {editing ? (
-                    <input
-                      value={form.risk_ref}
-                      onChange={set("risk_ref")}
-                      className="text-2xl font-bold text-slate-900 dark:text-white w-full rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-2 outline-none focus:ring-2 focus:ring-slate-500"
-                    />
-                  ) : (
-                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                      {risk.risk_ref}
-                    </h1>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${zoneConfig.dot}`} />
-                    <span className={`text-sm font-bold ${zoneConfig.text}`}>
-                      {zoneConfig.label} Risk
-                    </span>
-                  </div>
-                  {editing ? (
-                    <select
-                      value={form.status}
-                      onChange={set("status")}
-                      className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-slate-500"
-                    >
-                      {RISK_STATUSES.map((s) => (
-                        <option key={s} value={s} className="capitalize">
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <StatusBadge status={risk.status} />
-                  )}
-                </div>
-              </div>
+        {/* Workflow */}
+        <div className="py-6 border-y border-zinc-100 dark:border-zinc-900">
+          <WorkflowStepper status={risk.status} />
+        </div>
 
-              {/* Description */}
-              <div className="pt-4 border-t border-slate-300/30 dark:border-slate-700/50">
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400 mb-2">
-                  Description
-                </p>
-                {editing ? (
-                  <textarea
-                    value={form.risk_discription}
-                    onChange={set("risk_discription")}
-                    rows="3"
-                    className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-slate-500 resize-none"
-                  />
-                ) : (
-                  <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                    {risk.risk_discription || (
-                      <span className="italic text-slate-500">No description provided</span>
-                    )}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                    Identified
-                  </p>
-                </div>
-                {editing ? (
-                  <input
-                    type="date"
-                    value={form.date_identified}
-                    onChange={set("date_identified")}
-                    className="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-slate-500"
-                  />
-                ) : (
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                    {formatDate(risk.date_identified)}
-                  </p>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                    Next Review
-                  </p>
-                </div>
-                {editing ? (
-                  <input
-                    type="date"
-                    value={form.next_review_date}
-                    onChange={set("next_review_date")}
-                    className="w-full px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-slate-500"
-                  />
-                ) : (
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                    {formatDate(risk.next_review_date)}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Risk Matrix */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400">
-                Risk Matrix
+        {/* Content grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-10">
+          {/* Left: main content */}
+          <div className="space-y-8">
+            {/* Description */}
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-400 mb-2">Description</p>
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                {risk.risk_discreption || <span className="italic text-zinc-400">No description provided</span>}
               </p>
-              <div className="space-y-2">
-                <div className="grid grid-cols-4 gap-1">
-                  <div></div>
-                  {["Low", "Medium", "High"].map((occ) => (
-                    <div key={occ} className="text-center text-[10px] font-bold text-slate-600 dark:text-slate-400">
-                      {occ}
-                    </div>
-                  ))}
-                </div>
-                {[3, 2, 1].map((sig) => (
-                  <div key={sig} className="grid grid-cols-4 gap-1">
-                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-400 text-right pr-2">
-                      {sig}
-                    </div>
-                    {[1, 2, 3].map((occ) => {
-                      const score = sig * occ
-                      let color = "bg-slate-100 dark:bg-slate-800"
-                      if (score >= 6) color = "bg-red-200 dark:bg-red-950"
-                      else if (score >= 3) color = "bg-amber-200 dark:bg-amber-950"
-
-                      const isCurrentRisk = risk.significance === sig && risk.occurence === occ
-
-                      return (
-                        <div
-                          key={`${sig}-${occ}`}
-                          className={`flex items-center justify-center h-10 rounded-lg font-bold text-xs transition-all border-2 ${
-                            isCurrentRisk
-                              ? "border-slate-600 dark:border-slate-400 ring-2 ring-slate-400 dark:ring-slate-600"
-                              : "border-transparent"
-                          } ${color}`}
-                        >
-                          {score}
-                          {isCurrentRisk && <span className="ml-1">●</span>}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
             </div>
 
-            {/* Objectives */}
-            {(() => {
-              const objectivesData = risk.objectives || []
-              if (objectivesData.length === 0) return null
-
-              return (
-                <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                    <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Linked Objectives
-                    </h2>
-                    <span className="ml-auto text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
-                      {objectivesData.length}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3">
-                    {objectivesData.map((obj, idx) => (
-                      <ObjectiveCard
-                        key={obj.objective_id || idx}
-                        objective={obj}
-                        onNavigate={(objId) => navigate(`/objectives/${objId}`)}
+            {/* Significance / Occurrence — read only, numeric 1-3 scale */}
+            <div className="grid grid-cols-2 gap-8">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400 mb-2">Significance</p>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl font-semibold text-zinc-900 dark:text-white">{risk.significance}</span>
+                  <span className="text-xs text-zinc-400">/ 3</span>
+                  <div className="flex gap-1 ml-1">
+                    {[1, 2, 3].map((i) => (
+                      <span
+                        key={i}
+                        className={`size-1.5 rounded-full ${
+                          i <= risk.significance ? "bg-violet-600" : "bg-zinc-200 dark:bg-zinc-700"
+                        }`}
                       />
                     ))}
                   </div>
+                  <span className="text-xs text-zinc-400">{SIG_LABELS[risk.significance]}</span>
                 </div>
-              )
-            })()}
-          </div>
-
-          {/* Right: Scoring */}
-          <div className="space-y-5">
-            {/* Score */}
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-6 flex flex-col items-center gap-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400 text-center mb-4">
-                  Risk Score
-                </p>
-                <ScoreRing score={liveScore} zone={zone} />
               </div>
-
-              {/* Sliders */}
-              <div className="w-full space-y-5 pt-6 border-t border-slate-200 dark:border-slate-700">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                      Significance
-                    </span>
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">
-                      {SIG_LABELS[editSig]}
-                    </span>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400 mb-2">Occurrence</p>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xl font-semibold text-zinc-900 dark:text-white">{risk.occurence}</span>
+                  <span className="text-xs text-zinc-400">/ 3</span>
+                  <div className="flex gap-1 ml-1">
+                    {[1, 2, 3].map((i) => (
+                      <span
+                        key={i}
+                        className={`size-1.5 rounded-full ${
+                          i <= risk.occurence ? "bg-violet-600" : "bg-zinc-200 dark:bg-zinc-700"
+                        }`}
+                      />
+                    ))}
                   </div>
-                  {editing ? (
-                    <input
-                      type="range"
-                      min="1"
-                      max="3"
-                      step="1"
-                      value={form.significance}
-                      onChange={set("significance")}
-                      className="w-full accent-slate-600"
-                    />
-                  ) : (
-                    <div className="flex gap-1">
-                      {[1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className={`h-2 flex-1 rounded transition-colors ${
-                            i <= editSig ? "bg-slate-600 dark:bg-slate-400" : "bg-slate-200 dark:bg-slate-700"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
-                      Occurrence
-                    </span>
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">
-                      {OCC_LABELS[editOcc]}
-                    </span>
-                  </div>
-                  {editing ? (
-                    <input
-                      type="range"
-                      min="1"
-                      max="3"
-                      step="1"
-                      value={form.occurence}
-                      onChange={set("occurence")}
-                      className="w-full accent-slate-600"
-                    />
-                  ) : (
-                    <div className="flex gap-1">
-                      {[1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className={`h-2 flex-1 rounded transition-colors ${
-                            i <= editOcc ? "bg-slate-600 dark:bg-slate-400" : "bg-slate-200 dark:bg-slate-700"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <span className="text-xs text-zinc-400">{OCC_LABELS[risk.occurence]}</span>
                 </div>
               </div>
             </div>
 
+            {/* Dates — inline, no big boxes */}
+            <div className="flex items-center gap-8 text-sm">
+              <div className="flex items-center gap-2 text-zinc-500">
+                <Calendar className="size-3.5" />
+                <span>Next review</span>
+                <span className="font-medium text-zinc-900 dark:text-white">
+                  {formatDate(risk.next_review_date)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: sidebar */}
+          <div className="space-y-8">
             {/* Component */}
             {risk.component && (
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-6">
-                <p className="text-xs font-semibold uppercase tracking-widest text-slate-600 dark:text-slate-400 mb-4">
-                  ISQM Component
-                </p>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400 mb-2">Component</p>
                 <ComponentHoverCard component={risk.component} />
+              </div>
+            )}
+
+            {/* Objectives */}
+            {risk.objectives && risk.objectives.length > 0 && (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-zinc-400 mb-3">
+                  Objectives ({risk.objectives.length})
+                </p>
+                <div className="space-y-1">
+                  {risk.objectives.map((obj) => (
+                    <button
+                      key={obj.id}
+                      onClick={() => navigate(`/objectives/${obj.id}`)}
+                      className="group w-full flex items-center justify-between gap-2 py-2 border-b border-zinc-100 dark:border-zinc-900 last:border-0 text-left"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Target className="size-3.5 text-zinc-300 shrink-0" />
+                        <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate">
+                          Objective {obj.objective_reference}
+                        </span>
+                      </div>
+                      <ArrowRight className="size-3.5 text-zinc-300 group-hover:text-zinc-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </div>
-
-        {/* Error */}
-        {saveError && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900">
-            <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
-            <p className="text-sm text-red-600 dark:text-red-400">{saveError}</p>
-          </div>
-        )}
       </div>
+
+      {/* Edit Drawer */}
+      <EditDrawer open={editOpen} onOpenChange={setEditOpen} risk={risk} onSaved={setRisk} />
 
       {/* Delete Dialog */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Risk?</AlertDialogTitle>
+            <AlertDialogTitle>Delete risk?</AlertDialogTitle>
             <AlertDialogDescription>
-              Risk <span className="font-mono font-semibold">{risk.risk_ref}</span> will be
-              permanently deleted. This cannot be undone.
+              Risk <span className="font-mono font-semibold">{risk.risk_ref}</span> will be permanently
+              deleted. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -680,7 +561,7 @@ export default function RiskDetails() {
               disabled={deleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {deleting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {deleting && <Loader2 className="size-4 animate-spin mr-2" />}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,6 +1,9 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpRight, ShieldCheck, Eye, AlertTriangle, CircleDashed, Rocket, ClipboardCheck, CheckCircle2, Archive } from "lucide-react";
+import {
+  ArrowUpRight, ShieldCheck, Eye, AlertTriangle, CircleDashed, Rocket,
+  ClipboardCheck, CheckCircle2, Archive, Bot, Hand, Blend,
+} from "lucide-react";
 
 const RESPONSE_TYPE_CONFIG = {
   DETECTIVE: {
@@ -28,6 +31,28 @@ const STATUS_CONFIG = {
   RETIRED:     { label: "Retired",     icon: Archive,        pill: "bg-rose-50 text-rose-600 border-rose-200" },
 };
 
+// Matches backend ExecutionType enum
+const EXECUTION_CONFIG = {
+  MANUAL:    { label: "Manual",    icon: Hand, pill: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-800" },
+  AUTOMATED: { label: "Automated", icon: Bot,  pill: "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/30 dark:text-cyan-400 dark:border-cyan-900" },
+  HYBRID:    { label: "Hybrid",    icon: Blend, pill: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900" },
+};
+
+// Matches backend Frequency enum — plain readable labels, underscore stripped
+const FREQUENCY_LABEL = {
+  continuous: "Continuous",
+  daily: "Daily",
+  weekly: "Weekly",
+  biweekly: "Biweekly",
+  monthly: "Monthly",
+  bimonthly: "Bimonthly",
+  quarterly: "Quarterly",
+  semiannually: "Semiannually",
+  annually: "Annually",
+  ad_hoc: "Ad hoc",
+  event_driven: "Event driven",
+};
+
 function TypeChip({ type }) {
   const cfg = RESPONSE_TYPE_CONFIG[type] || { label: type || "—", icon: ShieldCheck, chip: "bg-slate-50 text-slate-500 border-slate-200" };
   const Icon = cfg.icon;
@@ -50,6 +75,26 @@ function StatusPill({ status }) {
   );
 }
 
+function ExecutionPill({ execution }) {
+  const cfg = EXECUTION_CONFIG[execution] || { label: execution || "—", icon: CircleDashed, pill: "bg-slate-50 text-slate-400 border-slate-100" };
+  const Icon = cfg.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cfg.pill}`}>
+      <Icon className="size-3" />
+      {cfg.label}
+    </span>
+  );
+}
+
+function FrequencyChip({ frequency }) {
+  const label = FREQUENCY_LABEL[frequency] || frequency || "—";
+  return (
+    <span className="text-[11px] font-semibold text-[#7B3FBE] bg-[#EDE9F8] dark:bg-accent dark:text-foreground px-2 py-0.5 rounded font-mono">
+      {label}
+    </span>
+  );
+}
+
 function ResponsesList({ responses }) {
   const navigate = useNavigate();
 
@@ -58,7 +103,7 @@ function ResponsesList({ responses }) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-border bg-muted/20">
-            {["Ref", "Name", "Type", "Status", "Owner", ""].map((h) => (
+            {["Ref", "Name", "Type", "Status", "Frequency", "Execution", "Owner", ""].map((h) => (
               <th
                 key={h}
                 className="text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-5 py-3 whitespace-nowrap"
@@ -71,7 +116,7 @@ function ResponsesList({ responses }) {
         <tbody>
           {!responses?.length ? (
             <tr>
-              <td colSpan={6} className="py-16 text-center">
+              <td colSpan={8} className="py-16 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <ShieldCheck className="size-6 text-muted-foreground/25" />
                   <p className="text-sm text-muted-foreground">No responses found.</p>
@@ -107,6 +152,16 @@ function ResponsesList({ responses }) {
                 {/* Status */}
                 <td className="px-5 py-3.5">
                   <StatusPill status={response.status} />
+                </td>
+
+                {/* Frequency */}
+                <td className="px-5 py-3.5">
+                  <FrequencyChip frequency={response.frequency} />
+                </td>
+
+                {/* Execution */}
+                <td className="px-5 py-3.5">
+                  <ExecutionPill execution={response.execution_type} />
                 </td>
 
                 {/* Owner */}

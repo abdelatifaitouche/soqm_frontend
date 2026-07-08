@@ -23,6 +23,30 @@ const STATUS_OPTIONS = [
   { value: "RETIRED",     label: "Retired" },
 ];
 
+// Matches backend ExecutionType enum
+const EXECUTION_OPTIONS = [
+  { value: "",          label: "All executions" },
+  { value: "MANUAL",    label: "Manual" },
+  { value: "AUTOMATED", label: "Automated" },
+  { value: "HYBRID",    label: "Hybrid" },
+];
+
+// Matches backend Frequency enum
+const FREQUENCY_OPTIONS = [
+  { value: "",             label: "All frequencies" },
+  { value: "continuous",   label: "Continuous" },
+  { value: "daily",        label: "Daily" },
+  { value: "weekly",       label: "Weekly" },
+  { value: "biweekly",     label: "Biweekly" },
+  { value: "monthly",      label: "Monthly" },
+  { value: "bimonthly",    label: "Bimonthly" },
+  { value: "quarterly",    label: "Quarterly" },
+  { value: "semiannually", label: "Semiannually" },
+  { value: "annually",     label: "Annually" },
+  { value: "ad_hoc",       label: "Ad hoc" },
+  { value: "event_driven", label: "Event driven" },
+];
+
 // ─── Shared select style ──────────────────────────────────────────────────────
 
 const SELECT_CLS =
@@ -51,6 +75,8 @@ function Responses() {
 
   const [statusFilter,    setStatusFilter]    = useState("");
   const [typeFilter,      setTypeFilter]      = useState("");
+  const [frequencyFilter, setFrequencyFilter] = useState("");
+  const [executionFilter, setExecutionFilter] = useState("");
   // Store component_id as a string to avoid number/string mismatch with the backend
   const [componentFilter, setComponentFilter] = useState("");
 
@@ -60,9 +86,11 @@ function Responses() {
   // Without this, hooks that do `JSON.stringify(filters)` in their dep array
   // would still work, but hooks comparing by reference would re-fire every render.
   const backendFilters = useMemo(() => ({
-    ...(statusFilter    && { status:       statusFilter }),
-    ...(componentFilter && { component_id: componentFilter }),
-  }), [statusFilter, componentFilter]);
+    ...(statusFilter    && { status:         statusFilter }),
+    ...(componentFilter && { component_id:   componentFilter }),
+    ...(frequencyFilter && { frequency:      frequencyFilter }),
+    ...(executionFilter && { execution_type: executionFilter }),
+  }), [statusFilter, componentFilter, frequencyFilter, executionFilter]);
 
   const { responses, loading, error } = useResponses(backendFilters);
 
@@ -71,15 +99,19 @@ function Responses() {
     ? responses?.filter((r) => r.response_type === typeFilter)
     : responses;
 
-  const isFiltered = !!(statusFilter || typeFilter || componentFilter);
+  const isFiltered = !!(
+    statusFilter || typeFilter || componentFilter || frequencyFilter || executionFilter
+  );
 
   const clearAll = () => {
     setStatusFilter("");
     setTypeFilter("");
     setComponentFilter("");
+    setFrequencyFilter("");
+    setExecutionFilter("");
   };
 
-  // Counts always from the full (status/component filtered) set, before type filter
+  // Counts always from the full (backend-filtered) set, before type filter
   const counts = {
     effective:   responses?.filter((r) => r.status === "EFFECTIVE").length   ?? 0,
     implemented: responses?.filter((r) => r.status === "IMPLEMENTED").length ?? 0,
@@ -139,6 +171,28 @@ function Responses() {
           ))}
         </select>
 
+        {/* Frequency — backend filter */}
+        <select
+          value={frequencyFilter}
+          onChange={(e) => setFrequencyFilter(e.target.value)}
+          className={SELECT_CLS}
+        >
+          {FREQUENCY_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
+        {/* Execution type — backend filter */}
+        <select
+          value={executionFilter}
+          onChange={(e) => setExecutionFilter(e.target.value)}
+          className={SELECT_CLS}
+        >
+          {EXECUTION_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
         {/* Component — backend filter via component_id */}
         <select
           value={componentFilter}
@@ -174,7 +228,7 @@ function Responses() {
 
       {/* Table — key forces a clean remount when filters change so stale rows don't linger */}
       <ResponsesList
-        key={`${statusFilter}|${typeFilter}|${componentFilter}`}
+        key={`${statusFilter}|${typeFilter}|${componentFilter}|${frequencyFilter}|${executionFilter}`}
         responses={visible}
       />
 

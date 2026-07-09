@@ -285,7 +285,7 @@ export default function ObjectiveDetails() {
               onClick={() => navigate(`/risks/create?objective_id=${objective.id}`)}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-[#7B3FBE] hover:underline mt-1"
             >
-              <Plus className="size-3.5" /> Add the first risk
+              <Plus className="size-3.5" /> Add risk
             </button>
           </div>
         ) : (

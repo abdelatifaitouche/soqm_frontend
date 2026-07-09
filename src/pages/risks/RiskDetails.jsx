@@ -177,7 +177,7 @@ function EditDrawer({ open, onOpenChange, risk, onSaved }) {
   // (Re)initialize form whenever the drawer opens with fresh risk data
   if (open && !form) {
     setForm({
-      risk_discreption: risk.risk_discreption ?? "",
+      risk_discription: risk.risk_discreption ?? "",
       significance: risk.significance,
       occurence: risk.occurence,
       status: risk.status,
@@ -226,7 +226,7 @@ function EditDrawer({ open, onOpenChange, risk, onSaved }) {
             <label className="text-xs font-medium text-zinc-500 mb-1.5 block">Description</label>
             <textarea
               value={form.risk_discreption}
-              onChange={set("risk_discreption")}
+              onChange={set("risk_discription")}
               rows={4}
               className="w-full rounded-md border border-zinc-200 dark:border-zinc-800 bg-transparent px-3 py-2 text-sm text-zinc-900 dark:text-white outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-white resize-none"
             />

@@ -44,7 +44,7 @@ export function LoginForm() {
               </svg>
             </div>
             <span className="text-[#D4B8F0] text-[11px] font-semibold tracking-[0.12em] uppercase">
-              SOQM · Grant Thornton Algeria 2
+              SOQM · Grant Thornton Algeria
             </span>
           </div>
 

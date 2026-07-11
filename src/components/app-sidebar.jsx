@@ -94,9 +94,9 @@ const navigation = [
     icon: Building2,
     defaultOpen: false,
     items: [
-      { title: "Departments", href: "/departments", icon: Building2, comingSoon: true },
-      { title: "Users", href: "/users", icon: Users, comingSoon: true },
-      { title: "Employees", href: "/employees", icon: Users, comingSoon: true },
+      { title: "Departments", href: "/departments", icon: Building2, comingSoon: false },
+      { title: "Users", href: "/users", icon: Users, comingSoon:false },
+      { title: "Employees", href: "/employees", icon: Users, comingSoon: false },
     ],
   },
   {

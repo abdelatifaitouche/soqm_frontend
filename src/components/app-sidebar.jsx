@@ -29,23 +29,27 @@ import {
   Bot,
   ChevronDown,
   ChevronRight,
+  Lock,
 } from "lucide-react"
 
+// `comingSoon: true` items render as inert (no NavLink, no route match, no click)
+// with a small "Soon" badge instead of being wired up — flip it off once the
+// page actually exists.
 const navigation = [
   {
     label: "AI Assistant",
     icon: Bot,
-    defaultOpen: true,
+    defaultOpen: false,
     items: [
-      { title: "SOQM Chatbot", href: "/chatbot", icon: Bot },
+      { title: "SOQM Chatbot", href: "/chatbot", icon: Bot, comingSoon: true },
     ],
   },
   {
     label: "Overview",
     icon: LayoutDashboard,
-    defaultOpen: true,
+    defaultOpen: false,
     items: [
-      { title: "Dashboard", href: "/", icon: LayoutDashboard },
+      { title: "Dashboard", href: "/", icon: LayoutDashboard, comingSoon: true },
     ],
   },
   {
@@ -63,8 +67,8 @@ const navigation = [
     defaultOpen: true,
     items: [
       { title: "Risks", href: "/risks", icon: AlertTriangle },
-       { title: "Responses", href: "/responses", icon: AlertTriangle },
-      { title: "Evidence & Monitoring", href: "/monitoring", icon: SearchCheck },
+      { title: "Responses", href: "/responses", icon: AlertTriangle },
+      { title: "Evidence & Monitoring", href: "/monitoring", icon: SearchCheck, comingSoon: true },
     ],
   },
   {
@@ -72,8 +76,8 @@ const navigation = [
     icon: Workflow,
     defaultOpen: false,
     items: [
-      { title: "Processes", href: "/processes", icon: Workflow },
-      { title: "Procedures", href: "/procedures", icon: ClipboardList },
+      { title: "Processes", href: "/processes", icon: Workflow, comingSoon: true },
+      { title: "Procedures", href: "/procedures", icon: ClipboardList, comingSoon: true },
     ],
   },
   {
@@ -81,8 +85,8 @@ const navigation = [
     icon: FileStack,
     defaultOpen: false,
     items: [
-      { title: "EQR Reviews", href: "/eqr", icon: FileStack },
-      { title: "Findings & Remediations", href: "/findings", icon: CheckSquare },
+      { title: "EQR Reviews", href: "/eqr", icon: FileStack, comingSoon: true },
+      { title: "Findings & Remediations", href: "/findings", icon: CheckSquare, comingSoon: true },
     ],
   },
   {
@@ -90,27 +94,36 @@ const navigation = [
     icon: Building2,
     defaultOpen: false,
     items: [
-      { title: "Departments", href: "/departments", icon: Building2 },
-      { title: "Users", href: "/users", icon: Users },
-      { title: "Employees", href: "/employees", icon: Users },
+      { title: "Departments", href: "/departments", icon: Building2, comingSoon: true },
+      { title: "Users", href: "/users", icon: Users, comingSoon: true },
+      { title: "Employees", href: "/employees", icon: Users, comingSoon: true },
     ],
   },
   {
     label: "Supporting Systems",
     icon: Library,
-    defaultOpen: false,
+    defaultOpen: true,
     items: [
-      { title: "Tasks", href: "/tasks", icon: CheckSquare },
-      { title: "Quality Alerts", href: "/alerts", icon: Bell },
-      { title: "Weekly Reports", href: "/reports", icon: FileBarChart2 },
+      { title: "Tasks", href: "/tasks", icon: CheckSquare, comingSoon: true },
+      { title: "Quality Alerts", href: "/alerts", icon: Bell, comingSoon: true },
+      { title: "Weekly Reports", href: "/reports", icon: FileBarChart2, comingSoon: true },
       { title: "Document Library", href: "/documents", icon: Library },
     ],
   },
 ]
 
+function ComingSoonBadge() {
+  return (
+    <span className="ml-auto flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-sidebar-foreground/35 bg-sidebar-accent/50 px-1.5 py-0.5 rounded">
+      <Lock className="size-2.5" />
+      Soon
+    </span>
+  )
+}
+
 function NavGroup({ group, location }) {
   const hasActive = group.items.some((item) =>
-    item.href === "/" ? location.pathname === "/" : location.pathname.startsWith(item.href)
+    !item.comingSoon && (item.href === "/" ? location.pathname === "/" : location.pathname.startsWith(item.href))
   )
   const [open, setOpen] = useState(group.defaultOpen || hasActive)
   const GroupIcon = group.icon
@@ -137,6 +150,20 @@ function NavGroup({ group, location }) {
       >
         <div className="ml-2 mt-0.5 border-l border-sidebar-border pl-2 space-y-0.5">
           {group.items.map((item) => {
+            if (item.comingSoon) {
+              return (
+                <div
+                  key={item.href}
+                  title="Coming soon"
+                  className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm font-medium text-sidebar-foreground/35 cursor-not-allowed select-none"
+                >
+                  <item.icon className="size-3.5 shrink-0 opacity-40" />
+                  <span>{item.title}</span>
+                  <ComingSoonBadge />
+                </div>
+              )
+            }
+
             const isActive = item.href === "/"
               ? location.pathname === "/"
               : location.pathname.startsWith(item.href)

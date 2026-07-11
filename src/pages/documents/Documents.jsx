@@ -28,6 +28,8 @@ import {
   ChevronRight,
   XCircle,
 } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
+import { useRole } from "@/hooks/useRole"
 
 // ============================================================
 // CONFIG
@@ -467,7 +469,7 @@ export default function Documents() {
   const [search, setSearch] = useState("")
   const [uploadOpen, setUploadOpen] = useState(false)
   const [page, setPage] = useState(1)
-
+    const { isAdmin } = useRole()
   // Both filters are already lowercase, matching the backend enums exactly —
   // no transformation needed before sending.
   const filters = useMemo(() => ({
@@ -538,13 +540,16 @@ export default function Documents() {
             {documents_loading ? "Loading library…" : `${total} document${total !== 1 ? "s" : ""} in your library`}
           </p>
         </div>
-        <button
+        {
+            isAdmin ? <button
           onClick={() => setUploadOpen(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#3B1F6A] rounded-lg hover:bg-[#52298F] transition-colors shrink-0"
         >
           <Plus className="size-4" />
           Upload document
-        </button>
+        </button>:<></>
+        }
+        
       </div>
 
       {/* Search + filters */}

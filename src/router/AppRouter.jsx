@@ -24,6 +24,7 @@ import CreateEmployee from "@/pages/employees/CreateEmployee"
 import CreateResponse from "@/pages/risks/responses/CreateResponse"
 import Risks from "@/pages/risks/Risks"
 import Matrix from "@/pages/risks/Matrix"
+import Documents from "@/pages/documents/Documents"
 
 export default function AppRouter() {
   return (
@@ -63,6 +64,8 @@ export default function AppRouter() {
             <Route path="/responses"     element={<Responses />} />
             <Route path="/responses/create"     element={<CreateResponse />} />
              <Route path="/responses/:id"     element={<ResponseDetails />} />
+
+             <Route path="/documents"     element={<Documents />} />
           </Route>
         </Route>
 

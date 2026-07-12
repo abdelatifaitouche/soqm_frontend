@@ -46,3 +46,7 @@ export const deleteRisk = (id) =>
       successMessage: "Risk deleted successfully",
     },
   });
+
+
+export const getResponseRisks = (response_id) =>
+  api.get(`/risks/${response_id}/list`);

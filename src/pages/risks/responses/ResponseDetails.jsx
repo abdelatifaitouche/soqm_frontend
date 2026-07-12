@@ -9,6 +9,7 @@ import {
   Building2, Loader2, AlertCircle, ChevronLeft, ChevronRight,
   Target, ShieldAlert, FileSearch,
 } from "lucide-react"
+import { useResponseRisks } from "@/hooks/useResponseRisks"
 
 // ── Normalize ─────────────────────────────────────────────────────────────────
 
@@ -313,10 +314,8 @@ function Pagination({ page, totalPages, onChange, loading }) {
 function RisksSection({ responseId }) {
   const navigate    = useNavigate()
   const [page, setPage] = useState(1)
-  const { items: risks, totalPages, total, loading, error } = useRisks(
-    { response_id: responseId },
-    page, 8,
-    { column: "score", direction: "desc" }
+  const { response_risks, setResponseRisks, risks_loading, risks_error }= useResponseRisks(
+    responseId,
   )
 
   return (
@@ -326,22 +325,20 @@ function RisksSection({ responseId }) {
           <Target className="size-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold text-foreground">Linked risks</h2>
         </div>
-        {!loading && total > 0 && (
-          <span className="text-xs text-muted-foreground">{total} risk{total !== 1 ? "s" : ""}</span>
-        )}
+        
       </div>
 
-      {loading ? (
+      {risks_loading ? (
         <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
           <span className="text-sm">Loading risks…</span>
         </div>
-      ) : error ? (
+      ) : risks_error ? (
         <div className="flex items-center justify-center gap-2 py-12 text-destructive">
           <AlertCircle className="size-4" />
           <span className="text-sm">Failed to load risks</span>
         </div>
-      ) : !risks?.length ? (
+      ) : !response_risks?.length ? (
         <div className="flex flex-col items-center gap-2 py-12">
           <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
             <Target className="size-4 text-muted-foreground/40" />
@@ -361,10 +358,9 @@ function RisksSection({ responseId }) {
               </tr>
             </thead>
             <tbody>
-              {risks.map((risk) => <RiskRow key={risk.id} risk={risk} navigate={navigate} />)}
+              {response_risks.map((risk) => <RiskRow key={risk.id} risk={risk} navigate={navigate} />)}
             </tbody>
           </table>
-          <Pagination page={page} totalPages={totalPages} onChange={setPage} loading={loading} />
         </>
       )}
     </div>

@@ -23,7 +23,7 @@ export const createDept = (data) =>
 // ===================== UPDATE =====================
 
 export const updateDept = (id, data) =>
-  api.put(`/api/v1/departments/${id}/`, data, {
+  api.patch(`/api/v1/departments/${id}/`, data, {
     meta: {
       successMessage: "Department updated successfully",
     },

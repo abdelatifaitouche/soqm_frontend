@@ -14,7 +14,7 @@ export function useObjectiveRisks(objectiveId) {
       .catch((err) => setError(err))
       .finally(() => setLoading(false))
   }, [objectiveId])
-
+  console.log(risks)
   return {
     risks,
     setRisks,

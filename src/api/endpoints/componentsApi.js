@@ -43,24 +43,24 @@ export const deleteComponent = (id) =>
 
 
 
-export const activateComponent = (id, data) =>
-  api.patch(`/components/${id}/activate/`, data, {
+export const activateComponent = (id) =>
+  api.patch(`/components/${id}/activate/`, {
     meta: {
       successMessage: "Component activate successfully",
     },
   });
 
 
-export const deactivateComponent = (id, data) =>
-  api.patch(`/components/${id}/deactivate/`, data, {
+export const deactivateComponent = (id) =>
+  api.patch(`/components/${id}/deactivate/`,  {
     meta: {
       successMessage: "Component deactivate successfully",
     },
   });
 
 
-export const archiveComponent = (id, data) =>
-  api.patch(`/components/${id}/archive/`, data, {
+export const archiveComponent = (id) =>
+  api.patch(`/components/${id}/archive/`,  {
     meta: {
       successMessage: "Component archived successfully",
     },

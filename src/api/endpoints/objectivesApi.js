@@ -13,7 +13,7 @@ export const getObjective = (id) =>
   api.get(`/objectives/${id}`);
 
 export const getObjectiveRisks = (id) =>
-  api.get(`/objectives/${id}/risks`);
+  api.get(`/risks/${id}/list`);
 
 // ===================== CREATE =====================
 

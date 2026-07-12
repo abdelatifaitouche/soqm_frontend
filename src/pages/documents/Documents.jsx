@@ -38,6 +38,7 @@ import { useRole } from "@/hooks/useRole"
 // Matches the backend DocumentType enum — values are lowercase
 const DOCUMENT_TYPES = [
   { value: "policy",    label: "Policy" },
+  { value: "manual",    label: "Manual" },
   { value: "procedure", label: "Procedure" },
   { value: "template",  label: "Template" },
   { value: "form",      label: "Form" },
@@ -66,7 +67,10 @@ const SELECT_CLS =
 // reliable signal for the icon.
 const DOC_TYPE_VISUAL = {
   policy:    { icon: FileText,        chip: "bg-[#EDE9F8] text-[#7B3FBE] dark:bg-accent dark:text-foreground" },
-  procedure: { icon: FileText,        chip: "bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400" },
+manual: {
+  icon: FileText,
+  chip: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+},  procedure: { icon: FileText,        chip: "bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400" },
   template:  { icon: FileSpreadsheet, chip: "bg-cyan-50 text-cyan-600 dark:bg-cyan-950/30 dark:text-cyan-400" },
   form:      { icon: FileSpreadsheet, chip: "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400" },
   guidance:  { icon: FileText,        chip: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400" },

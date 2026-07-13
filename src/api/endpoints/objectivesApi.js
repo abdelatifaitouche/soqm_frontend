@@ -12,9 +12,8 @@ export const getObjectivesOptions = (params = {}) =>
 export const getObjective = (id) =>
   api.get(`/objectives/${id}`);
 
-export const getObjectiveRisks = (id) =>
-  api.get(`/risks/${id}/list`);
-
+export const getObjectiveRisks = (id, params = {}) =>
+  api.get(`/risks/objective/${id}/risks`, { params })
 // ===================== CREATE =====================
 
 export const createObjective = (data) =>

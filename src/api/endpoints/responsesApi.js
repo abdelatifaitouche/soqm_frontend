@@ -1,4 +1,5 @@
 import axiosClient from "@/api/axiosClient"
+import { api } from "../api";
 
 
 export const getResponses  = (params = {})           => axiosClient.get(`/responses`, {params})
@@ -9,3 +10,6 @@ export const createResponse = (data) =>
       successMessage: "Response created successfully",
     },
   });
+
+
+export const getRiskResponses = (id , params = {}) => api.get(`/responses/${id}/responses`, {params})

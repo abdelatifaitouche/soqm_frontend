@@ -31,10 +31,13 @@ import {
   ChevronRight,
   Lock,
 } from "lucide-react"
+import { useRole } from "@/hooks/useRole"
 
 // `comingSoon: true` items render as inert (no NavLink, no route match, no click)
 // with a small "Soon" badge instead of being wired up — flip it off once the
 // page actually exists.
+// `adminOnly: true` items are filtered out of the nav entirely for anyone
+// whose role isn't ADMIN or SUPER_ADMIN (see useRole's isAdmin).
 const navigation = [
   {
     label: "AI Assistant",
@@ -95,8 +98,8 @@ const navigation = [
     defaultOpen: false,
     items: [
       { title: "Departments", href: "/departments", icon: Building2, comingSoon: false },
-      { title: "Users", href: "/users", icon: Users, comingSoon:false },
-      { title: "Employees", href: "/employees", icon: Users, comingSoon: false },
+      { title: "Users", href: "/users", icon: Users, comingSoon: false, adminOnly: true },
+      { title: "Employees", href: "/employees", icon: Users, comingSoon: false, adminOnly: true },
     ],
   },
   {
@@ -195,12 +198,22 @@ function NavGroup({ group, location }) {
 }
 
 export function AppSidebar({ ...props }) {
+  const { role, isAdmin } = useRole()
   const { user, logout } = useAuth()
   const location = useLocation()
 
   const initials = user?.email
     ? user.email.slice(0, 2).toUpperCase()
     : "?"
+
+  // Strip admin-only items for non-admins, then drop any group left with no
+  // items at all so an empty "Organization" header never renders.
+  const visibleNavigation = navigation
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.adminOnly || isAdmin),
+    }))
+    .filter((group) => group.items.length > 0)
 
   return (
     <Sidebar variant="floating" {...props}>
@@ -225,7 +238,7 @@ export function AppSidebar({ ...props }) {
 
       {/* Nav */}
       <SidebarContent className="py-3 px-2 space-y-0.5 overflow-y-auto">
-        {navigation.map((group) => (
+        {visibleNavigation.map((group) => (
           <NavGroup key={group.label} group={group} location={location} />
         ))}
       </SidebarContent>

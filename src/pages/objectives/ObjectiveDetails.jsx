@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { AlertCircle, Loader2, ArrowRight, Plus, Pencil, ChevronLeft, ChevronRight, ArrowDownUp } from "lucide-react"
 import { useObjective } from "@/hooks/useObjective"
-import { useRisks } from "@/hooks/useRisks"
+import { useObjectiveRisks } from "@/hooks/useObjectiveRisks"
 import { useRole } from "@/hooks/useRole"
 import ObjectiveHeader from "./components/ObjectiveHeader"
 import ObjectiveCard from "./components/ObjectiveCard"
@@ -20,13 +20,13 @@ const STATUS_OPTIONS = [
   { value: "closed",           label: "Closed" },
 ]
 
-// Backend only supports column = "score" | "created_at", so we expose the
-// meaningful combinations rather than raw column/direction pickers.
+// Backend order_by only supports "score" | "created_at", and direction is
+// uppercase ("ASC"/"DESC") — matching OrderByEnum / OrderDirection exactly.
 const SORT_OPTIONS = [
-  { column: "created_at", direction: "desc", label: "Newest first" },
-  { column: "created_at", direction: "asc",  label: "Oldest first" },
-  { column: "score",      direction: "desc", label: "Highest score first" },
-  { column: "score",      direction: "asc",  label: "Lowest score first" },
+  { order_by: "created_at", direction: "desc", label: "Newest first" },
+  { order_by: "created_at", direction: "asc",  label: "Oldest first" },
+  { order_by: "score",      direction: "desc", label: "Highest score first" },
+  { order_by: "score",      direction: "asc",  label: "Lowest score first" },
 ]
 
 const SELECT_CLS =
@@ -62,38 +62,6 @@ function DotBar({ value, max = 3 }) {
         ))}
       </div>
       <span className="text-xs text-muted-foreground">{value} / {max}</span>
-    </div>
-  )
-}
-
-// ── Mini 3×3 risk matrix ──────────────────────────────────────────────────────
-function MiniMatrix({ significance, occurrence, score }) {
-  const cells = [
-    [3,1],[3,2],[3,3],
-    [2,1],[2,2],[2,3],
-    [1,1],[1,2],[1,3],
-  ]
-  const getColor = (s, o) => {
-    const sc = s * o
-    if (sc >= 6) return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
-    if (sc >= 3) return "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
-    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
-  }
-  return (
-    <div className="grid gap-0.5" style={{ gridTemplateColumns: "repeat(3, 20px)", gridTemplateRows: "repeat(3, 20px)" }}>
-      {cells.map(([s, o], i) => {
-        const isActive = s === significance && o === occurrence
-        return (
-          <div
-            key={i}
-            className={`rounded-sm flex items-center justify-center text-[9px] font-bold transition-all ${getColor(s, o)} ${
-              isActive ? "ring-2 ring-[#3B1F6A] dark:ring-[#9B5FDE] ring-offset-0 z-10 scale-110" : ""
-            }`}
-          >
-            {isActive ? score : ""}
-          </div>
-        )
-      })}
     </div>
   )
 }
@@ -159,16 +127,14 @@ export default function ObjectiveDetails() {
   const [statusFilter, setStatusFilter] = useState("")
   const [sortIndex, setSortIndex]       = useState(0) // index into SORT_OPTIONS, defaults to "Newest first"
   const [page, setPage]                 = useState(1)
-  const size = 10
 
   const sort = SORT_OPTIONS[sortIndex]
 
-  // Risks for this page are always scoped to the current objective —
-  // objective_id is the one filter that's never cleared by the user.
-  const riskFilters = useMemo(() => ({
-    objective_id: id,
+  // objective_id is now baked into the endpoint path (/risks/objective/{id}/risks),
+  // not a filter — only score/status/component_id go in `filters` per RiskFilters.
+  const filters = useMemo(() => ({
     ...(statusFilter && { status: statusFilter }),
-  }), [id, statusFilter])
+  }), [statusFilter])
 
   // Status or sort change invalidates the current page.
   useEffect(() => {
@@ -176,12 +142,12 @@ export default function ObjectiveDetails() {
   }, [statusFilter, sortIndex])
 
   const {
-    items: risks,
+    risks,
     total,
     totalPages,
     loading: riskLoading,
     error: riskError,
-  } = useRisks(riskFilters, page, size, { column: sort.column, direction: sort.direction })
+  } = useObjectiveRisks(id, filters, page, { order_by: sort.order_by, direction: sort.direction })
 
   const highestScore = risks?.length ? Math.max(...risks.map(r => r.score)) : 0
   const avgScore     = risks?.length ? (risks.reduce((s, r) => s + r.score, 0) / risks.length).toFixed(1) : "—"
@@ -206,16 +172,14 @@ export default function ObjectiveDetails() {
       {/* Objective card */}
       <ObjectiveCard objective={objective} />
 
-      {/* Risk summary strip — based on the current page of risks.
-          NOTE: `total` currently reflects all risks system-wide, not the
-          objective_id-filtered count, until the backend fix lands — so it's
-          intentionally not used for "Total risks" below; risks?.length (the
-          current page) is the only reliably-scoped number we have for now. */}
+      {/* Risk summary strip — `total` now comes scoped to this objective directly
+          from /risks/objective/{id}/risks, so it's accurate (unlike the old
+          /risks?objective_id= endpoint's unfiltered total). */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Risks (this page)", value: risks?.length ?? 0,  color: "text-foreground" },
+          { label: "Total risks",   value: total ?? 0,  color: "text-foreground" },
           { label: "Highest score", value: risks?.length ? highestScore : "—", color: highestScore >= 6 ? "text-red-600 dark:text-red-400" : highestScore >= 3 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400", suffix: risks?.length ? ` / 9` : "" },
-          { label: "Avg score",     value: avgScore, color: "text-amber-600 dark:text-amber-400" },
+          { label: "Avg score (this page)", value: avgScore, color: "text-amber-600 dark:text-amber-400" },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border border-border bg-card px-5 py-4">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">{s.label}</p>
@@ -293,7 +257,7 @@ export default function ObjectiveDetails() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/20">
-                  {["Ref", "Description", "Significance", "Occurrence", "Score", "Matrix", ""].map((h) => (
+                  {["Ref", "Description", "Significance", "Occurrence", "Score", ""].map((h) => (
                     <th key={h} className="text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-4 py-3">
                       {h}
                     </th>
@@ -312,7 +276,7 @@ export default function ObjectiveDetails() {
                       </span>
                     </td>
                     <td className="px-4 py-3.5 max-w-[180px]">
-                      <span className="text-xs text-muted-foreground truncate block">{risk.risk_discription ?? "—"}</span>
+                      <span className="text-xs text-muted-foreground truncate block">{risk.risk_description ?? "—"}</span>
                     </td>
                     <td className="px-4 py-3.5">
                       <DotBar value={risk.significance} />
@@ -323,13 +287,7 @@ export default function ObjectiveDetails() {
                     <td className="px-4 py-3.5">
                       <ScoreBadge score={risk.score} />
                     </td>
-                    <td className="px-4 py-3.5">
-                      <MiniMatrix
-                        significance={risk.significance}
-                        occurrence={risk.occurence}
-                        score={risk.score}
-                      />
-                    </td>
+
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         {isAdmin && (

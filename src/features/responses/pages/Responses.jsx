@@ -4,7 +4,7 @@ import { useComponentsOptions } from "@/features/isqm_components/hooks/useCompon
 import { ShieldCheck, Plus, XCircle, AlertCircle, ChevronLeft, ChevronRight, ArrowDownUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ResponsesList from "./ResponsesList";
-
+import Pagination from "@/shared/components/Pagination";
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const TYPE_OPTIONS = [
@@ -75,57 +75,8 @@ function StatCard({ label, value, dot }) {
   );
 }
 
-// ─── Pagination ───────────────────────────────────────────────────────────────
 
-function Pagination({ page, totalPages, hasNextPage, hasPrevPage, onChange }) {
-  if (totalPages <= 1) return null;
 
-  // Keep the page list short: always show first, last, current ±1, collapse the rest with "…"
-  const pages = useMemo(() => {
-    const set = new Set([1, totalPages, page - 1, page, page + 1]);
-    return [...set].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
-  }, [page, totalPages]);
-
-  return (
-    <div className="flex items-center justify-center gap-1 pt-2">
-      <button
-        onClick={() => onChange(page - 1)}
-        disabled={!hasPrevPage}
-        className="flex items-center justify-center size-8 rounded-lg border border-input bg-card text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card transition-colors"
-      >
-        <ChevronLeft className="size-3.5" />
-      </button>
-
-      {pages.map((p, i) => {
-        const prev = pages[i - 1];
-        const gap = prev !== undefined && p - prev > 1;
-        return (
-          <React.Fragment key={p}>
-            {gap && <span className="px-1.5 text-xs text-muted-foreground/50">…</span>}
-            <button
-              onClick={() => onChange(p)}
-              className={`flex items-center justify-center size-8 rounded-lg text-xs font-semibold transition-colors ${
-                p === page
-                  ? "bg-[#3B1F6A] text-white"
-                  : "border border-input bg-card text-muted-foreground hover:text-foreground hover:bg-muted/40"
-              }`}
-            >
-              {p}
-            </button>
-          </React.Fragment>
-        );
-      })}
-
-      <button
-        onClick={() => onChange(page + 1)}
-        disabled={!hasNextPage}
-        className="flex items-center justify-center size-8 rounded-lg border border-input bg-card text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card transition-colors"
-      >
-        <ChevronRight className="size-3.5" />
-      </button>
-    </div>
-  );
-}
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -165,7 +116,7 @@ function Responses() {
 
   const {
     responses, loading, error,
-    total, totalPages, hasNextPage, hasPrevPage,
+    total, totalPages
   } = useResponses(backendFilters, page);
 
   // type is client-side only (not in backend ResponseFilters) — applied on top
@@ -327,9 +278,8 @@ function Responses() {
         <Pagination
           page={page}
           totalPages={totalPages}
-          hasNextPage={hasNextPage}
-          hasPrevPage={hasPrevPage}
-          onChange={setPage}
+          total={total}
+          onPageChange={setPage}
         />
       )}
 

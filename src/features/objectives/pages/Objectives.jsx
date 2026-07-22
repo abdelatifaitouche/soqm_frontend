@@ -1,27 +1,15 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Plus, Loader2, AlertCircle, ArrowUpRight, Calendar, X,
-  ChevronLeft, ChevronRight, CircleDashed, CheckCircle2,
-  Activity, RefreshCw, PenLine, Shield, Archive, Pause, Replace,
+  ChevronLeft, ChevronRight, CircleDashed,
 } from "lucide-react"
 import { useObjectives } from "@/features/objectives/hooks/useObjectives"
 import { formatDate } from "@/utils/formatDate"
 import { useComponentsOptions } from "@/features/isqm_components/hooks/useComponentsOptions"
+import STATUS_CONFIG from "@/features/objectives/data/states"
+import Pagination from "@/shared/components/Pagination"
 
-// ── Status config ─────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG = {
-  draft:        { label: "Draft",        icon: CircleDashed,  cls: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700" },
-  approved:     { label: "Approved",     icon: CheckCircle2,  cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900" },
-  active:       { label: "Active",       icon: Activity,      cls: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900" },
-  under_review: { label: "Under Review", icon: RefreshCw,     cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900" },
-  revised:      { label: "Revised",      icon: PenLine,       cls: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/30 dark:text-violet-400 dark:border-violet-900" },
-  achieved:     { label: "Achieved",     icon: Shield,        cls: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-400 dark:border-teal-900" },
-  superseded:   { label: "Superseded",   icon: Replace,       cls: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-900" },
-  suspended:    { label: "Suspended",    icon: Pause,         cls: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900" },
-  archived:     { label: "Archived",     icon: Archive,       cls: "bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700" },
-}
 
 function StatusPill({ status }) {
   const key = status?.toLowerCase()
@@ -35,66 +23,7 @@ function StatusPill({ status }) {
   )
 }
 
-// ── Pagination ────────────────────────────────────────────────────────────────
 
-function Pagination({ page, totalPages, total, onPageChange, loading }) {
-  if (totalPages <= 1) return null
-
-  const from = (page - 1) * 10 + 1
-  const to   = Math.min(page * 10, total)
-
-  const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
-    .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-    .reduce((acc, p, i, arr) => {
-      if (i > 0 && arr[i - 1] !== p - 1) acc.push("…")
-      acc.push(p)
-      return acc
-    }, [])
-
-  return (
-    <div className="flex items-center justify-between px-5 py-3 border-t border-border">
-      <p className="text-xs text-muted-foreground">
-        Showing {from}–{to} of {total}
-      </p>
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(page - 1)}
-          disabled={page <= 1 || loading}
-          className="flex size-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronLeft className="size-3.5" />
-        </button>
-
-        {pages.map((p, i) =>
-          p === "…" ? (
-            <span key={`e-${i}`} className="text-xs text-muted-foreground px-1">…</span>
-          ) : (
-            <button
-              key={p}
-              onClick={() => onPageChange(p)}
-              disabled={loading}
-              className={`flex size-7 items-center justify-center rounded-md text-xs font-medium transition-colors ${
-                p === page
-                  ? "bg-[#3B1F6A] text-white"
-                  : "border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              {p}
-            </button>
-          )
-        )}
-
-        <button
-          onClick={() => onPageChange(page + 1)}
-          disabled={page >= totalPages || loading}
-          className="flex size-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <ChevronRight className="size-3.5" />
-        </button>
-      </div>
-    </div>
-  )
-}
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
@@ -108,11 +37,12 @@ function Objectives() {
   const handleComponentChange = (val) => { setComponentId(val); setPage(1) }
   const clearAll = () => { setStatus(""); setComponentId(""); setPage(1) }
 
-  const { items, total, totalPages, loading, error } = useObjectives(page, status, componentId)
+  const { items, total, totalPages, loading, error } = useObjectives({page, status, componentId})
   const { options: components, loading: componentsLoading } = useComponentsOptions()
 
   const isFiltered = !!(status || componentId)
 
+  
   return (
     <div className="space-y-5">
 

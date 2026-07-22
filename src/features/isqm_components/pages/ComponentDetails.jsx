@@ -17,12 +17,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useContext, useState } from "react";
+import { useState } from "react";
 import { deleteComponent } from "@/features/isqm_components/api/componentsApi"
 import ComponentHeader from "../components/ComponentHeader";
 import ObjectiveTable from "../../objectives/components/ObjectiveTable";
 import ComponentInfo from "../components/ComponentInfo";
 import { useObjectives } from "@/features/objectives/hooks/useObjectives";
+import Pagination from "@/shared/components/Pagination";
 
 
 
@@ -31,7 +32,7 @@ export default function ComponentDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAdmin } = useRole();
-
+  const [page, setPage] = useState(1) 
 
   const {
     component,
@@ -42,9 +43,10 @@ export default function ComponentDetails() {
   const {
     items:objectives,
     loading: objLoading,
+    total,
+    totalPages,
     error: objError,
-  } = useObjectives({componentId:id});
-
+  } = useObjectives({page:page , componentId:id});
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -170,8 +172,12 @@ export default function ComponentDetails() {
               </button>
             </div>
           ) : (
-            <ObjectiveTable objectives={objectives} />
+            <><ObjectiveTable objectives={objectives} />
+            <Pagination page={page} onPageChange={setPage} totalPages={totalPages} total={total} />
+            </>
+
           )}
+
         </div>
       </div>
 

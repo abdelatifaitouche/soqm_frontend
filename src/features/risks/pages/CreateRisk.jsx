@@ -309,7 +309,7 @@ function RiskMatrix({ occ, sig }) {
 const INITIAL = {
   component_id: "",
   objectives: [],
-  risk_discription: "",
+  risk_description: "",
   occurence: "1",
   significance: "1",
   next_review_date: "",
@@ -319,7 +319,7 @@ function validate(form) {
   const e = {}
   if (!form.component_id) e.component_id = "Select a component."
   if (form.objectives.length === 0) e.objectives = "Select at least one objective."
-  if (!form.risk_discription.trim()) e.risk_discription = "Description is required."
+  if (!form.risk_description.trim()) e.risk_description = "Description is required."
   if (!form.next_review_date) e.next_review_date = "Review date is required."
   return e
 }
@@ -370,7 +370,7 @@ function CreateRisk() {
       await createRisk({
         component_id: form.component_id,
         objectives: form.objectives,
-        risk_discription: form.risk_discription,
+        risk_description: form.risk_description,
         occurence: Number(form.occurence),
         significance: Number(form.significance),
         next_review_date: form.next_review_date,
@@ -465,14 +465,14 @@ function CreateRisk() {
                     <textarea
                       rows={4}
                       placeholder="Describe the risk in detail…"
-                      value={form.risk_discription}
-                      onChange={set("risk_discription")}
+                      value={form.risk_description}
+                      onChange={set("risk_description")}
                       className={`w-full pl-9 pr-3 py-2.5 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#3B1F6A]/20 focus:border-[#3B1F6A]/50 transition-all placeholder:text-slate-400 resize-none ${
-                        errors.risk_discription ? "border-red-300" : "border-slate-200"
+                        errors.risk_description ? "border-red-300" : "border-slate-200"
                       }`}
                     />
                   </div>
-                  <FieldError msg={errors.risk_discription} />
+                  <FieldError msg={errors.risk_description} />
                 </div>
               </div>
             </div>

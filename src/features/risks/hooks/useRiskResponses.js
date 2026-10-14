@@ -1,13 +1,6 @@
 import { useEffect, useState } from "react"
 import { getRiskResponses } from "@/features/responses/api/responsesApi"
 
-/**
- * filters:  { status, risk_id, assigned_employee, created_by, execution_type,
- *             frequency, component_id } — all optional, matches ResponseFilters
- * orderBy:  { order_by: "created_at", direction: "ASC" | "DESC" }
- * page:     backend only reads ?page=, everything else (size, total) comes back
- *           in the response envelope
- */
 export function useRiskResponses(
   id,
   filters = {},
@@ -16,35 +9,39 @@ export function useRiskResponses(
 ) {
   const [responses, setResponses] = useState([])
   const [total, setTotal] = useState(0)
-  const [size, setSize]   = useState(10)
+  const [size, setSize] = useState(10)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    if (!id) return
+    if (!id) {
+      setResponses([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
 
     let cancelled = false
+
     setLoading(true)
     setError(null)
 
-    // Drop empty/undefined filter values so we don't send e.g. status=
-    // as a literal empty query param.
     const cleanFilters = Object.fromEntries(
       Object.entries(filters).filter(([, v]) => v !== "" && v != null)
     )
 
     const params = {
       ...cleanFilters,
+      risk_id: id,
       page,
       order_by: orderBy.order_by,
       direction: orderBy.direction,
     }
 
-    getRiskResponses(id, params)
+    getRiskResponses(params)
       .then((res) => {
         if (cancelled) return
-        // `res` is already the response body for this api instance.
-        // Backend returns { total, page, size, items }.
+
         setResponses(res?.items ?? [])
         setTotal(res?.total ?? 0)
         setSize(res?.size ?? 10)
@@ -60,10 +57,13 @@ export function useRiskResponses(
         if (!cancelled) setLoading(false)
       })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [id, JSON.stringify(filters), page, orderBy.order_by, orderBy.direction])
 
-  const totalPages = size > 0 ? Math.max(1, Math.ceil(total / size)) : 1
+  const totalPages =
+    size > 0 ? Math.max(1, Math.ceil(total / size)) : 1
 
   return {
     responses,

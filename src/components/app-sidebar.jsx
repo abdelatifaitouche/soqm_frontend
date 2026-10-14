@@ -62,18 +62,12 @@ const navigation = [
     items: [
       { title: "SOQM Components", href: "/components", icon: ShieldCheck },
       { title: "Quality Objectives", href: "/objectives", icon: Target },
-    ],
-  },
-  {
-    label: "Risk Management",
-    icon: AlertTriangle,
-    defaultOpen: true,
-    items: [
       { title: "Risks", href: "/risks", icon: AlertTriangle },
       { title: "Responses", href: "/responses", icon: AlertTriangle },
       { title: "Evidence & Monitoring", href: "/monitoring", icon: SearchCheck, comingSoon: true },
     ],
   },
+
   {
     label: "Operations",
     icon: Workflow,

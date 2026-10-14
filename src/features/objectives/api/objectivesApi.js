@@ -2,22 +2,27 @@ import { api } from "@/api/api";
 // ===================== GET =====================
 
 export const getObjectives = (params = {}) =>
-  api.get("/objectives", { params })
+  api.get("/soqm/objectives", { params })
 
 export const getObjectivesOptions = (params = {}) =>
-  api.get("/objectives/options", {
+  api.get("/soqm/objectives/options", {
     params,
   });
 
 export const getObjective = (id) =>
-  api.get(`/objectives/${id}`);
+  api.get(`/soqm/objectives/${id}`);
 
 export const getObjectiveRisks = (id, params = {}) =>
-  api.get(`/risks/objective/${id}/risks`, { params })
+  api.get("/soqm/risks", {
+    params: {
+      ...params,
+      objective_id: id,
+    },
+  })
 // ===================== CREATE =====================
 
 export const createObjective = (data) =>
-  api.post("/objectives/", data, {
+  api.post("/soqm/objectives/", data, {
     meta: {
       successMessage: "Objective created successfully",
     },
@@ -26,7 +31,7 @@ export const createObjective = (data) =>
 // ===================== UPDATE =====================
 
 export const updateObjective = (id, data) =>
-  api.patch(`/objectives/${id}/`, data, {
+  api.patch(`/soqm/objectives/${id}/`, data, {
     meta: {
       successMessage: "Objective updated successfully",
     },
@@ -35,7 +40,7 @@ export const updateObjective = (id, data) =>
 // ===================== DELETE =====================
 
 export const deleteObjective = (id) =>
-  api.delete(`/objectives/${id}/`, {
+  api.delete(`/soqm/objectives/${id}/`, {
     meta: {
       successMessage: "Objective deleted successfully",
     },

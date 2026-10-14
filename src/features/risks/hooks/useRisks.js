@@ -5,7 +5,10 @@ export function useRisks(
   filters = {},   // { score, status, component_id, objective_id }
   page = 1,
   size = 10,
-  orderBy = { column: "created_at", direction: "desc" }
+  // Backend now takes a `columns` list (multi-column ordering) instead of a
+  // single `column`. For risks specifically, the default order is by
+  // sequence_number then component_order, not created_at.
+  orderBy = { columns: ["sequence_number", "component_order"], direction: "desc" }
 ) {
   const [items, setItems]       = useState([])
   const [total, setTotal]       = useState(0)
@@ -28,7 +31,7 @@ export function useRisks(
       ...cleanFilters,
       page,
       size,
-      column:    orderBy.column,
+      columns:   orderBy.columns,
       direction: orderBy.direction,
     }
 
@@ -50,7 +53,9 @@ export function useRisks(
       .finally(() => { if (!cancelled) setLoading(false) })
 
     return () => { cancelled = true }
-  }, [JSON.stringify(filters), page, size, orderBy.column, orderBy.direction])
+    // JSON.stringify the columns array — a new array literal every render
+    // (e.g. an inline default) would otherwise retrigger the effect forever.
+  }, [JSON.stringify(filters), page, size, JSON.stringify(orderBy.columns), orderBy.direction])
 
   return { items, total, totalPages, loading, error }
 }

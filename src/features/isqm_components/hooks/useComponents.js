@@ -10,7 +10,7 @@ export function useComponents() {
     setError(null);
 
     try {
-      const data = await api.get("/components");
+      const data = await api.get("/soqm/components");
       setComponents(data);
     } catch (err) {
       setError(err); // optional (UI-level handling only)

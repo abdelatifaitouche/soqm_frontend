@@ -79,9 +79,14 @@ function LevelBar({ value }) {
 }
 
 // ── Sort button ───────────────────────────────────────────────────────────────
+// orderBy now carries a `columns` list rather than a single `column`. A
+// sort button is "active" only when it's the sole column currently applied —
+// clicking any header collapses the ordering down to that one column
+// (overriding the default sequence_number/component_order pair), rather
+// than trying to represent multi-column sort state in a single icon.
 
 function SortButton({ column, label, orderBy, onSort }) {
-  const active = orderBy.column === column
+  const active = orderBy.columns.length === 1 && orderBy.columns[0] === column
   const Icon = active && orderBy.direction === "asc" ? ChevronUp : ChevronDown
   return (
     <button
@@ -216,6 +221,11 @@ function ViewToggle({ view, onChange }) {
 
 const SIZE = 10
 
+// Default ordering for the risks list — sequence_number then component_order,
+// not created_at. Declared as a module-level constant (not an inline object
+// literal in useState) so it's referentially stable across renders.
+const DEFAULT_ORDER_BY = { columns: ["sequence_number", "component_order"], direction: "desc" }
+
 function Risks() {
   const navigate = useNavigate()
 
@@ -225,7 +235,7 @@ function Risks() {
   const [page,        setPage]        = useState(1)
   const [status,      setStatus]      = useState("")
   const [componentId, setComponentId] = useState("")
-  const [orderBy,     setOrderBy]     = useState({ column: "created_at", direction: "desc" })
+  const [orderBy,     setOrderBy]     = useState(DEFAULT_ORDER_BY)
 
   const filters = useMemo(() => ({
     ...(status      && { status }),
@@ -234,15 +244,27 @@ function Risks() {
 
   const handleFilter = (setter) => (e) => { setter(e.target.value); setPage(1) }
 
+  // Clicking a sortable header collapses ordering to that single column,
+  // toggling direction if it's already the active (sole) column. This
+  // intentionally overrides the default two-column ordering rather than
+  // trying to interleave a third column into it.
   const handleSort = (column) => {
-    setOrderBy((prev) => ({
-      column,
-      direction: prev.column === column && prev.direction === "desc" ? "asc" : "desc",
-    }))
+    setOrderBy((prev) => {
+      const isActive = prev.columns.length === 1 && prev.columns[0] === column
+      return {
+        columns: [column],
+        direction: isActive && prev.direction === "desc" ? "asc" : "desc",
+      }
+    })
     setPage(1)
   }
 
-  const clearAll = () => { setStatus(""); setComponentId(""); setPage(1) }
+  const clearAll = () => {
+    setStatus("")
+    setComponentId("")
+    setOrderBy(DEFAULT_ORDER_BY)
+    setPage(1)
+  }
   const isFiltered = !!(status || componentId)
 
   const { items, total, totalPages, loading, error } = useRisks(filters, page, SIZE, orderBy)
@@ -357,13 +379,13 @@ function Risks() {
                       <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Occ</span>
                     </th>
                     <th className="text-left px-5 py-3 whitespace-nowrap">
-                      <SortButton column="score" label="Score" orderBy={orderBy} onSort={handleSort} />
+                      <SortButton column="component_order" label="Score" orderBy={orderBy} onSort={handleSort} />
                     </th>
                     <th className="text-left px-5 py-3 whitespace-nowrap">
                       <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Zone</span>
                     </th>
                     <th className="text-left px-5 py-3 whitespace-nowrap">
-                      <SortButton column="created_at" label="Created" orderBy={orderBy} onSort={handleSort} />
+                      <SortButton column="created_at" label="Identified" orderBy={orderBy} onSort={handleSort} />
                     </th>
                     <th className="px-5 py-3" />
                   </tr>
@@ -437,8 +459,14 @@ function Risks() {
                           <ZonePill score={risk.score} />
                         </td>
 
-                        {/* Created — empty column, sorted via header */}
-                        <td className="px-5 py-3.5" />
+                        {/* Created */}
+                        <td className="px-5 py-3.5">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {risk.date_identified
+                              ? new Date(risk.date_identified).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                              : "—"}
+                          </span>
+                        </td>
 
                         {/* Action */}
                         <td className="px-5 py-3.5 w-px">

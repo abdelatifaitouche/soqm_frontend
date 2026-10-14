@@ -3,21 +3,21 @@ import { api } from "@/api/api";
 // ===================== GET =====================
 
 export const getComponents = () =>
-  api.get("/components");
+  api.get("/soqm/components");
 
 export const getComponentsOptions = () =>
-  api.get("/components/options");
+  api.get("/soqm/components/options");
 
 export const getComponent = (id) =>
-  api.get(`/components/${id}`);
+  api.get(`/soqm/components/${id}`);
 
 export const getComponentObjectives = (id) =>
-  api.get(`/components/${id}/objectives`);
+  api.get(`/soqm/components/${id}/objectives`);
 
 // ===================== CREATE =====================
 
 export const createComponent = (data) =>
-  api.post("/components/", data, {
+  api.post("/soqm/components/", data, {
     meta: {
       successMessage: "Component created successfully",
     },
@@ -26,7 +26,7 @@ export const createComponent = (data) =>
 // ===================== UPDATE =====================
 
 export const updateComponent = (id, data) =>
-  api.patch(`/components/${id}/`, data, {
+  api.patch(`/soqm/components/${id}/`, data, {
     meta: {
       successMessage: "Component updated successfully",
     },
@@ -35,7 +35,7 @@ export const updateComponent = (id, data) =>
 // ===================== DELETE =====================
 
 export const deleteComponent = (id) =>
-  api.delete(`/components/${id}/`, {
+  api.delete(`/soqm/components/${id}/`, {
     meta: {
       successMessage: "Component deleted successfully",
     },
@@ -44,7 +44,7 @@ export const deleteComponent = (id) =>
 
 
 export const activateComponent = (id) =>
-  api.patch(`/components/${id}/activate/`, {
+  api.patch(`/soqm/components/${id}/activate/`, {
     meta: {
       successMessage: "Component activate successfully",
     },
@@ -52,7 +52,7 @@ export const activateComponent = (id) =>
 
 
 export const deactivateComponent = (id) =>
-  api.patch(`/components/${id}/deactivate/`,  {
+  api.patch(`/soqm/components/${id}/deactivate/`,  {
     meta: {
       successMessage: "Component deactivate successfully",
     },
@@ -60,7 +60,7 @@ export const deactivateComponent = (id) =>
 
 
 export const archiveComponent = (id) =>
-  api.patch(`/components/${id}/archive/`,  {
+  api.patch(`/soqm/components/${id}/archive/`,  {
     meta: {
       successMessage: "Component archived successfully",
     },

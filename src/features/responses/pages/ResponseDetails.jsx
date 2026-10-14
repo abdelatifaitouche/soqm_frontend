@@ -1,14 +1,36 @@
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useResponse } from "@/features/responses/hooks/useResponse"
+import { useResponseRisks } from "@/features/responses/hooks/useResponseRisks"
+import {
+  removeRiskFromResponse,
+  addRiskToResponse,
+  fetchComponentRisks,
+} from "@/features/responses/api/responsesApi"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   ArrowLeft, ShieldCheck, Eye, AlertTriangle, CircleDashed,
   Rocket, ClipboardCheck, CheckCircle2, Archive, Calendar,
   User, FileText, Clock, Pencil, ArrowUpRight, Info,
   Building2, Loader2, AlertCircle, ChevronLeft, ChevronRight,
-  Target, ShieldAlert, FileSearch,
+  Target, ShieldAlert, FileSearch, Unlink, Plus, Check,
 } from "lucide-react"
-import { useResponseRisks } from "@/features/responses/hooks/useResponseRisks"
 
 // ── Normalize ─────────────────────────────────────────────────────────────────
 
@@ -213,7 +235,7 @@ function ComponentCard({ component, navigate }) {
 
 // ── Risk row ──────────────────────────────────────────────────────────────────
 
-function RiskRow({ risk, navigate }) {
+function RiskRow({ risk, navigate, onRemove }) {
   const zone    = getRiskZone(risk.significance, risk.occurence)
   const key     = risk.status?.toLowerCase()
   const stCfg   = RISK_STATUS_CONFIG[key] ?? { label: risk.status, icon: CircleDashed, cls: "bg-slate-100 text-slate-400 border-slate-200" }
@@ -256,14 +278,23 @@ function RiskRow({ risk, navigate }) {
         </span>
       </td>
 
-      {/* Action */}
+      {/* Actions */}
       <td className="px-5 py-3.5 w-px">
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end">
+        <div className="flex items-center justify-end gap-1.5">
           <button
             onClick={(e) => { e.stopPropagation(); navigate(`/risks/${risk.id}`) }}
-            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors"
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
           >
             <ArrowUpRight className="size-3" /> View
+          </button>
+          {/* Always visible at low contrast so it works on touch devices too */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onRemove(risk) }}
+            aria-label={`Remove risk ${risk.risk_ref} from this response`}
+            title="Remove from response"
+            className="flex size-8 items-center justify-center rounded-lg text-muted-foreground/50 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 focus-visible:text-red-600 transition-colors"
+          >
+            <Unlink className="size-3.5" />
           </button>
         </div>
       </td>
@@ -274,11 +305,12 @@ function RiskRow({ risk, navigate }) {
 // ── Pagination ────────────────────────────────────────────────────────────────
 
 function Pagination({ page, totalPages, onChange, loading }) {
-  if (totalPages <= 1) return null
   const pages = useMemo(() => {
     const set = new Set([1, totalPages, page - 1, page, page + 1])
     return [...set].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b)
   }, [page, totalPages])
+
+  if (totalPages <= 1) return null
 
   return (
     <div className="flex items-center justify-between px-5 py-3 border-t border-border">
@@ -308,61 +340,354 @@ function Pagination({ page, totalPages, onChange, loading }) {
   )
 }
 
-// ── Risks section ─────────────────────────────────────────────────────────────
+// ── Add-risk drawer ───────────────────────────────────────────────────────────
 
-function RisksSection({ responseId }) {
-  const navigate    = useNavigate()
-  const [page, setPage] = useState(1)
-  const { response_risks, setResponseRisks, risks_loading, risks_error }= useResponseRisks(
-    responseId,
+const PAGE_SIZE = 10
+
+function RiskStatusPill({ status }) {
+  const cfg = RISK_STATUS_CONFIG[status?.toLowerCase()] ?? { label: status, icon: CircleDashed, cls: "bg-slate-100 text-slate-400 border-slate-200" }
+  const Icon = cfg.icon
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cfg.cls}`}>
+      <Icon className="size-2.5" />
+      {cfg.label}
+    </span>
   )
+}
+
+function AddRiskDrawer({ open, onOpenChange, responseId, componentId, linkedIds, onAdded }) {
+  const [page, setPage] = useState(1)
+  const [data, setData] = useState({ items: [], total: 0, size: PAGE_SIZE })
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState("")
+  const [reloadKey, setReloadKey] = useState(0)
+  const [addingId, setAddingId] = useState(null)
+  const [addError, setAddError] = useState("")
+
+  useEffect(() => {
+    if (!open || !componentId) return
+    let cancelled = false
+    setLoading(true)
+    setLoadError("")
+    fetchComponentRisks(componentId, { page, size: PAGE_SIZE })
+      .then((res) => {
+        if (cancelled) return
+        // Tolerate a missing/unwrapped payload instead of crashing the drawer
+        setData({
+          items: res?.items ?? [],
+          total: res?.total ?? 0,
+          size: res?.size ?? PAGE_SIZE,
+        })
+      })
+      .catch(() => { if (!cancelled) setLoadError("Couldn’t load risks. Try again.") })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [open, page, reloadKey, componentId])
+
+  const handleOpenChange = (val) => {
+    if (!val) {
+      setPage(1)
+      setAddError("")
+    }
+    onOpenChange(val)
+  }
+
+  const handleAdd = async (risk) => {
+    setAddingId(risk.id)
+    setAddError("")
+    try {
+      await addRiskToResponse(responseId, risk.id)
+      onAdded(risk) // linkedIds updates, so this row flips to "Linked" without a refetch
+    } catch (err) {
+      setAddError(err?.response?.data?.detail ?? "Couldn’t link this risk. Try again.")
+    } finally {
+      setAddingId(null)
+    }
+  }
+
+  // Risks come from the whole component, so some may already be linked to this response.
+  // They stay in the list (keeps pagination stable) but are marked as linked.
+  const items = data?.items ?? []
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / (data?.size || PAGE_SIZE)))
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <Target className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold text-foreground">Linked risks</h2>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetContent className="sm:max-w-lg flex flex-col">
+        <SheetHeader>
+          <SheetTitle>Add existing risk</SheetTitle>
+          <SheetDescription>
+            Risks from this response’s component. Pick one to link it to this response.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-4 py-2">
+          {addError && (
+            <div className="flex items-center gap-2 text-xs text-red-600 mb-3">
+              <AlertCircle className="size-3.5 shrink-0" />
+              {addError}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              <span className="text-sm">Loading risks…</span>
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center gap-2 py-16">
+              <p className="text-sm text-destructive">{loadError}</p>
+              <button
+                onClick={() => setReloadKey((k) => k + 1)}
+                className="text-xs font-medium text-[#7B3FBE] hover:underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-16 text-center">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+                <Target className="size-4 text-muted-foreground/40" />
+              </div>
+              <p className="text-sm text-muted-foreground">No risks found for this component.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border/60">
+              {items.map((risk) => {
+                const zone = getRiskZone(risk.significance, risk.occurence)
+                const adding = addingId === risk.id
+                const linked = linkedIds.has(risk.id)
+                return (
+                  <li key={risk.id} className={`flex items-start gap-3 py-3.5 ${linked ? "opacity-70" : ""}`}>
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] font-semibold text-[#7B3FBE] bg-[#EDE9F8] dark:bg-accent dark:text-foreground px-2 py-0.5 rounded font-mono">
+                          {risk.risk_ref}
+                        </span>
+                        <RiskStatusPill status={risk.status} />
+                        <span className={`text-xs font-semibold tabular-nums ${zone.scoreCls}`}>
+                          {zone.score} · {zone.label}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground/90 leading-snug line-clamp-2">
+                        {risk.risk_description || <span className="italic text-muted-foreground">No description</span>}
+                      </p>
+                    </div>
+                    {linked ? (
+                      <span className="shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 text-emerald-600 dark:text-emerald-400">
+                        <Check className="size-3.5" /> Linked
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleAdd(risk)}
+                        disabled={addingId !== null}
+                        className="shrink-0 flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {adding ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+                        Add
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
-        
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+            <p className="text-xs text-muted-foreground">Page {page} of {totalPages}</p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page <= 1 || loading}
+                aria-label="Previous page"
+                className="flex size-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="size-3.5" />
+              </button>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= totalPages || loading}
+                aria-label="Next page"
+                className="flex size-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="size-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+// ── Risks section ─────────────────────────────────────────────────────────────
+
+function RisksSection({ responseId, componentId }) {
+  const navigate = useNavigate()
+  const { response_risks, setResponseRisks, risks_loading, risks_error } = useResponseRisks(responseId)
+
+  const [addOpen, setAddOpen] = useState(false)
+  const linkedIds = useMemo(
+    () => new Set((response_risks?.items ?? []).map((r) => r.id)),
+    [response_risks]
+  )
+
+  const handleAdded = (risk) => {
+    const current = response_risks ?? { items: [], total: 0 }
+    setResponseRisks({
+      ...current,
+      items: [...(current.items ?? []), risk],
+      total: (current.total ?? current.items?.length ?? 0) + 1,
+    })
+  }
+
+  const canAdd = !risks_loading && !risks_error && !!componentId
+
+  const [riskToRemove, setRiskToRemove] = useState(null)
+  const [removing, setRemoving] = useState(false)
+  const [removeError, setRemoveError] = useState("")
+
+  const openRemove = (risk) => {
+    setRemoveError("")
+    setRiskToRemove(risk)
+  }
+
+  const closeRemove = (open) => {
+    if (open || removing) return // don't close mid-request
+    setRiskToRemove(null)
+    setRemoveError("")
+  }
+
+  const handleRemove = async (e) => {
+    e.preventDefault() // keep the dialog open until the request settles
+    if (!riskToRemove) return
+    setRemoving(true)
+    setRemoveError("")
+    try {
+      await removeRiskFromResponse(responseId, riskToRemove.id)
+      const items = response_risks.items.filter((r) => r.id !== riskToRemove.id)
+      setResponseRisks({
+        ...response_risks,
+        items,
+        total: Math.max(0, (response_risks.total ?? items.length + 1) - 1),
+      })
+      setRiskToRemove(null)
+    } catch (err) {
+      setRemoveError(err?.response?.data?.detail ?? "Couldn’t remove this risk. Try again.")
+    } finally {
+      setRemoving(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Target className="size-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">
+              Linked risks
+              {response_risks?.total ? (
+                <span className="ml-1.5 font-normal text-muted-foreground">{response_risks.total}</span>
+              ) : null}
+            </h2>
+          </div>
+
+          <button
+            onClick={() => setAddOpen(true)}
+            disabled={!canAdd}
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus className="size-3.5" /> Add risk
+          </button>
+        </div>
+
+        {risks_loading ? (
+          <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            <span className="text-sm">Loading risks…</span>
+          </div>
+        ) : risks_error ? (
+          <div className="flex items-center justify-center gap-2 py-12 text-destructive">
+            <AlertCircle className="size-4" />
+            <span className="text-sm">Failed to load risks</span>
+          </div>
+        ) : !response_risks?.items?.length ? (
+          <div className="flex flex-col items-center gap-2 py-12">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+              <Target className="size-4 text-muted-foreground/40" />
+            </div>
+            <p className="text-sm text-muted-foreground">No risks linked to this response yet.</p>
+            <button
+              onClick={() => setAddOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#7B3FBE] hover:underline"
+            >
+              <Plus className="size-3.5" /> Add existing risk
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px]">
+              <thead>
+                <tr className="border-b border-border bg-muted/20">
+                  {["Ref", "Description", "Status", "Score", "Zone", ""].map((h, i) => (
+                    <th key={i} className="text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-5 py-3 whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {response_risks.items.map((risk) => (
+                  <RiskRow key={risk.id} risk={risk} navigate={navigate} onRemove={openRemove} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {risks_loading ? (
-        <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          <span className="text-sm">Loading risks…</span>
-        </div>
-      ) : risks_error ? (
-        <div className="flex items-center justify-center gap-2 py-12 text-destructive">
-          <AlertCircle className="size-4" />
-          <span className="text-sm">Failed to load risks</span>
-        </div>
-      ) : !response_risks?.length ? (
-        <div className="flex flex-col items-center gap-2 py-12">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
-            <Target className="size-4 text-muted-foreground/40" />
-          </div>
-          <p className="text-sm text-muted-foreground">No risks linked to this response.</p>
-        </div>
-      ) : (
-        <>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-muted/20">
-                {["Ref", "Description", "Status", "Score", "Zone", ""].map((h) => (
-                  <th key={h} className="text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-5 py-3 whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {response_risks.map((risk) => <RiskRow key={risk.id} risk={risk} navigate={navigate} />)}
-            </tbody>
-          </table>
-        </>
-      )}
-    </div>
+      <AddRiskDrawer
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        responseId={responseId}
+        componentId={componentId}
+        linkedIds={linkedIds}
+        onAdded={handleAdded}
+      />
+
+      <AlertDialog open={!!riskToRemove} onOpenChange={(open) => !open && closeRemove(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove risk from this response?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Risk <span className="font-mono font-semibold">{riskToRemove?.risk_ref}</span> will be unlinked
+              from this response. The risk itself isn’t deleted and can be linked again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {removeError && (
+            <div className="flex items-center gap-2 text-xs text-red-600">
+              <AlertCircle className="size-3.5 shrink-0" />
+              {removeError}
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removing}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemove}
+              disabled={removing}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {removing && <Loader2 className="size-4 animate-spin mr-2" />}
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 
@@ -475,8 +800,8 @@ export default function ResponseDetails() {
         </div>
       </div>
 
-      {/* Linked risks — full table, no scroll prison */}
-      <RisksSection responseId={response.id} />
+      {/* Linked risks */}
+      <RisksSection responseId={response.id} componentId={component?.id} />
     </div>
   )
 }

@@ -2,18 +2,17 @@ import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Plus, Loader2, AlertCircle, ArrowUpRight, X,
-  ChevronLeft, ChevronRight, CircleDashed, ShieldAlert,
-  ClipboardList, CheckCircle2, ShieldCheck, Archive,
-  RefreshCw, FileSearch, ChevronDown, ChevronUp,
-  List as ListIcon, LayoutGrid, Activity, TrendingUp, Target,
+  CircleDashed, ShieldAlert,
+  ChevronDown, ChevronUp,
+  List as ListIcon, LayoutGrid,
 } from "lucide-react"
 import { useRisks } from "@/features/risks/hooks/useRisks"
 import { useComponentsOptions } from "@/features/isqm_components/hooks/useComponentsOptions"
 import { useRiskMatrix } from "@/features/risks/hooks/useRiskMatrix"
 import STATUS_CONFIG from "@/features/risks/data/states"
 import Pagination from "@/shared/components/Pagination"
-// ── Status config ─────────────────────────────────────────────────────────────
 
+// ── Zone helpers (list view) ──────────────────────────────────────────────────
 
 function getZone(score) {
   if (score >= 6) return { label: "Critical", cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900" }
@@ -79,11 +78,9 @@ function LevelBar({ value }) {
 }
 
 // ── Sort button ───────────────────────────────────────────────────────────────
-// orderBy now carries a `columns` list rather than a single `column`. A
-// sort button is "active" only when it's the sole column currently applied —
-// clicking any header collapses the ordering down to that one column
-// (overriding the default sequence_number/component_order pair), rather
-// than trying to represent multi-column sort state in a single icon.
+// orderBy carries a `columns` list rather than a single `column`. A sort button
+// is "active" only when it's the sole column currently applied — clicking any
+// header collapses the ordering to that one column.
 
 function SortButton({ column, label, orderBy, onSort }) {
   const active = orderBy.columns.length === 1 && orderBy.columns[0] === column
@@ -115,24 +112,21 @@ const OCC_COLS = [1, 2, 3]
 const MATRIX_ZONE = {
   critical: {
     label: "Critical",
-    cell: "bg-red-50 border-red-200",
-    text: "text-red-700",
+    range: "Score 6–9",
     dot: "bg-red-500",
-    tint: (o) => `rgba(220, 38, 38, ${0.12 + o * 0.68})`,
+    tint: (o) => `rgba(220, 38, 38, ${0.1 + o * 0.42})`,
   },
   high: {
     label: "High",
-    cell: "bg-orange-50 border-orange-200",
-    text: "text-orange-700",
+    range: "Score 3–5",
     dot: "bg-orange-500",
-    tint: (o) => `rgba(249, 115, 22, ${0.12 + o * 0.68})`,
+    tint: (o) => `rgba(249, 115, 22, ${0.1 + o * 0.42})`,
   },
   low: {
     label: "Low",
-    cell: "bg-green-50 border-green-200",
-    text: "text-green-700",
+    range: "Score 1–2",
     dot: "bg-green-500",
-    tint: (o) => `rgba(34, 197, 94, ${0.1 + o * 0.55})`,
+    tint: (o) => `rgba(34, 197, 94, ${0.08 + o * 0.36})`,
   },
 }
 
@@ -143,52 +137,52 @@ function getMatrixZone(significance, occurrence) {
   return "low"
 }
 
-function MatrixCell({ cell, maxPercent }) {
-  if (!cell) {
-    return <div className="w-12 h-12 rounded-md border border-dashed border-border/60 bg-muted/30" />
-  }
-
-  const zone = getMatrixZone(cell.significance, cell.occurence)
+// Compact register-style cell: score in the corner, share of risks centred.
+function MatrixCell({ cell, significance, occurrence, maxPercent }) {
+  const zone = getMatrixZone(significance, occurrence)
   const z = MATRIX_ZONE[zone]
-  const score = cell.significance * cell.occurence
-  const opacity = maxPercent > 0 ? Math.min(cell.percent / maxPercent, 1) : 0
+  const score = significance * occurrence
+  const percent = cell?.percent ?? 0
+  const empty = percent <= 0
+  const intensity = maxPercent > 0 ? Math.min(percent / maxPercent, 1) : 0
 
   return (
     <div
-      className={`group relative w-12 h-12 rounded-md border ${z.cell} flex flex-col items-center justify-center transition-all hover:-translate-y-0.5 hover:shadow-sm cursor-pointer`}
-      style={{ backgroundColor: z.tint(opacity) }}
+      role="img"
+      aria-label={`${SIG_LABELS[significance]} significance, ${OCC_LABELS[occurrence]} occurrence, score ${score}: ${
+        empty ? "no risks" : `${percent.toFixed(1)}% of risks`
+      }`}
+      className={`relative h-14 rounded-md border flex items-center justify-center ${
+        empty ? "border-dashed border-border/70 bg-muted/20" : "border-border/60"
+      }`}
+      style={empty ? undefined : { backgroundColor: z.tint(intensity) }}
     >
-      <p className={`text-[11px] font-semibold ${z.text}`}>{cell.percent.toFixed(1)}%</p>
-      <p className="text-[8px] text-muted-foreground leading-none mt-0.5">S{score}</p>
-
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-        <div className="bg-foreground text-background text-[10px] font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap">
-          {cell.percent.toFixed(1)}% of risks · {z.label}
-        </div>
-      </div>
+      <span className={`absolute left-1.5 top-1 text-[10px] tabular-nums ${empty ? "text-muted-foreground/40" : "text-foreground/50"}`}>
+        {score}
+      </span>
+      <span className={`text-sm tabular-nums ${empty ? "text-muted-foreground/40" : "font-semibold text-foreground"}`}>
+        {empty ? "–" : `${percent.toFixed(1)}%`}
+      </span>
     </div>
   )
 }
 
-function MatrixStatCard({ label, value, sublabel, icon: Icon, tone }) {
-  const tones = {
-    critical: { icon: "bg-red-50 text-red-600", value: "text-red-600" },
-    high: { icon: "bg-orange-50 text-orange-600", value: "text-orange-600" },
-    low: { icon: "bg-green-50 text-green-600", value: "text-green-600" },
-  }
-  const t = tones[tone]
-
+function ZoneRow({ zone, value }) {
+  const z = MATRIX_ZONE[zone]
   return (
-    <div className="rounded-lg border border-border bg-card p-3.5 flex items-start justify-between">
-      <div>
-        <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">{label}</p>
-        <p className={`text-xl font-bold ${t.value}`}>{value}</p>
-        <p className="text-[9px] text-muted-foreground/70 mt-0.5">{sublabel}</p>
+    <li>
+      <div className="flex items-baseline justify-between text-xs">
+        <span className="flex items-center gap-2 font-medium text-foreground">
+          <span className={`size-2 rounded-sm ${z.dot}`} />
+          {z.label}
+          <span className="font-normal text-muted-foreground">{z.range}</span>
+        </span>
+        <span className="tabular-nums font-semibold text-foreground">{value.toFixed(1)}%</span>
       </div>
-      <div className={`size-7 rounded-md flex items-center justify-center shrink-0 ${t.icon}`}>
-        <Icon className="size-3.5" />
+      <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">
+        <div className={`h-full rounded-full ${z.dot}`} style={{ width: `${Math.min(value, 100)}%` }} />
       </div>
-    </div>
+    </li>
   )
 }
 
@@ -222,8 +216,7 @@ function ViewToggle({ view, onChange }) {
 const SIZE = 10
 
 // Default ordering for the risks list — sequence_number then component_order,
-// not created_at. Declared as a module-level constant (not an inline object
-// literal in useState) so it's referentially stable across renders.
+// not created_at. Module-level constant so it's referentially stable.
 const DEFAULT_ORDER_BY = { columns: ["sequence_number", "component_order"], direction: "desc" }
 
 function Risks() {
@@ -231,11 +224,14 @@ function Risks() {
 
   const [view, setView] = useState("list") // "list" | "matrix"
 
-  // ── List view state — filters, sorting, pagination all live here and only here ──
+  // ── List view state ──
   const [page,        setPage]        = useState(1)
   const [status,      setStatus]      = useState("")
   const [componentId, setComponentId] = useState("")
   const [orderBy,     setOrderBy]     = useState(DEFAULT_ORDER_BY)
+
+  // ── Matrix view state — its own component filter, independent of the list ──
+  const [matrixComponentId, setMatrixComponentId] = useState("")
 
   const filters = useMemo(() => ({
     ...(status      && { status }),
@@ -244,10 +240,6 @@ function Risks() {
 
   const handleFilter = (setter) => (e) => { setter(e.target.value); setPage(1) }
 
-  // Clicking a sortable header collapses ordering to that single column,
-  // toggling direction if it's already the active (sole) column. This
-  // intentionally overrides the default two-column ordering rather than
-  // trying to interleave a third column into it.
   const handleSort = (column) => {
     setOrderBy((prev) => {
       const isActive = prev.columns.length === 1 && prev.columns[0] === column
@@ -270,10 +262,13 @@ function Risks() {
   const { items, total, totalPages, loading, error } = useRisks(filters, page, SIZE, orderBy)
   const { options: components, loading: componentsLoading } = useComponentsOptions()
 
-  // ── Matrix view state — only its own hook, no filters/pagination shared with list ──
-  const { cells: matrixCells, loading: matrixLoading, error: matrixError } = useRiskMatrix()
+  // The hook should accept a component id (or null) and refetch when it changes.
+  const { cells: matrixCells, loading: matrixLoading, error: matrixError } = useRiskMatrix(matrixComponentId || null)
 
   const maxPercent = matrixCells && matrixCells.length ? Math.max(...matrixCells.map((c) => c.percent)) : 0
+  const hasMatrixData = !!matrixCells?.some((c) => c.percent > 0)
+  // The hook starts with [] (not undefined), so "first load" means loading with nothing to show yet.
+  const matrixInitialLoading = matrixLoading && !matrixCells?.length
 
   const matrixStats = useMemo(() => {
     if (!matrixCells) return null
@@ -292,6 +287,16 @@ function Risks() {
     }
   }, [matrixCells])
 
+  const matrixComponentName = components?.find((c) => c.id === matrixComponentId)?.name
+
+  // Jump to the list, carrying the matrix's component filter with it.
+  const openInList = () => {
+    setComponentId(matrixComponentId)
+    setStatus("")
+    setPage(1)
+    setView("list")
+  }
+
   return (
     <div className="space-y-5">
 
@@ -302,7 +307,9 @@ function Risks() {
           <p className="text-sm text-muted-foreground mt-0.5">
             {view === "list"
               ? (loading ? "Loading…" : `${total} risk${total !== 1 ? "s" : ""} registered`)
-              : "Organization-wide risk assessment"}
+              : matrixComponentName
+                ? `Risk assessment for ${matrixComponentName}`
+                : "Organization-wide risk assessment"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -502,112 +509,137 @@ function Risks() {
 
       {/* ───────────────────────── Heat map view ───────────────────────── */}
       {view === "matrix" && (
-        <>
-          {matrixLoading && (
-            <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
+        <section className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between gap-3 flex-wrap px-5 py-3.5 border-b border-border">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Risk assessment matrix</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {matrixComponentName ?? "All components"} · share of risks by significance and occurrence
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <select
+                value={matrixComponentId}
+                onChange={(e) => setMatrixComponentId(e.target.value)}
+                disabled={componentsLoading}
+                aria-label="Filter heat map by component"
+                className={`${SELECT_CLS} !h-8`}
+              >
+                <option value="">All components</option>
+                {components?.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              {matrixComponentId && (
+                <button
+                  onClick={() => setMatrixComponentId("")}
+                  aria-label="Clear component filter"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+              <button
+                onClick={openInList}
+                className="flex items-center gap-1 text-xs font-medium text-[#7B3FBE] hover:underline whitespace-nowrap"
+              >
+                View in list <ArrowUpRight className="size-3" />
+              </button>
+            </div>
+          </div>
+
+          {matrixInitialLoading ? (
+            <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
               <span className="text-sm">Loading risk matrix…</span>
             </div>
-          )}
-
-          {!matrixLoading && matrixError && (
-            <div className="flex items-center justify-center gap-2 py-16 text-destructive">
+          ) : matrixError ? (
+            <div className="flex items-center justify-center gap-2 py-12 text-destructive">
               <AlertCircle className="size-4" />
               <span className="text-sm">Failed to load risk matrix.</span>
             </div>
-          )}
+          ) : !hasMatrixData ? (
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+                <LayoutGrid className="size-4 text-muted-foreground/40" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {matrixComponentId ? "No risks recorded for this component." : "No risks to plot yet."}
+              </p>
+            </div>
+          ) : (
+            <div
+              className={`p-5 flex flex-col md:flex-row gap-6 md:gap-8 transition-opacity ${matrixLoading ? "opacity-60" : ""}`}
+              aria-busy={matrixLoading}
+            >
+              {/* Matrix */}
+              <div className="w-full md:w-[340px] shrink-0">
+                <div className="flex gap-2">
+                  <div className="flex items-center justify-center w-3 shrink-0">
+                    <span
+                      className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap"
+                      style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}
+                    >
+                      Significance
+                    </span>
+                  </div>
 
-          {!matrixLoading && !matrixError && (
-            <div className="max-w space-y-4">
-              {/* Stats */}
+                  <div className="flex-1 min-w-0">
+                    <div className="grid gap-1 items-center" style={{ gridTemplateColumns: "36px repeat(3, minmax(0, 1fr))" }}>
+                      {SIG_ROWS.map((s) => (
+                        <div key={s} className="contents">
+                          <span className="text-[10px] text-muted-foreground text-right pr-1.5">{SIG_LABELS[s]}</span>
+                          {OCC_COLS.map((o) => (
+                            <MatrixCell
+                              key={`${s}-${o}`}
+                              cell={matrixCells.find((c) => c.occurence === o && c.significance === s)}
+                              significance={s}
+                              occurrence={o}
+                              maxPercent={maxPercent}
+                            />
+                          ))}
+                        </div>
+                      ))}
+
+                      <span />
+                      {OCC_COLS.map((o) => (
+                        <span key={o} className="text-[10px] text-muted-foreground text-center pt-1">{OCC_LABELS[o]}</span>
+                      ))}
+                    </div>
+                    <p className="text-center mt-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Occurrence
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary */}
               {matrixStats && (
-                <div className="grid grid-cols-3 gap-3">
-                  <MatrixStatCard label="Critical" value={`${matrixStats.critical.toFixed(1)}%`} sublabel="Score 6–9" icon={Activity} tone="critical" />
-                  <MatrixStatCard label="High" value={`${matrixStats.high.toFixed(1)}%`} sublabel="Score 3–5" icon={TrendingUp} tone="high" />
-                  <MatrixStatCard label="Low" value={`${matrixStats.low.toFixed(1)}%`} sublabel="Score 1–2" icon={Target} tone="low" />
+                <div className="flex-1 min-w-0 md:border-l md:border-border md:pl-8 flex flex-col">
+                  <p className="text-xs font-medium text-muted-foreground mb-3">Distribution by zone</p>
+                  <ul className="space-y-3.5">
+                    <ZoneRow zone="critical" value={matrixStats.critical} />
+                    <ZoneRow zone="high" value={matrixStats.high} />
+                    <ZoneRow zone="low" value={matrixStats.low} />
+                  </ul>
+
+                  <div className="mt-4 pt-3 border-t border-border flex items-baseline justify-between text-xs">
+                    <span className="text-muted-foreground">High or critical</span>
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {(matrixStats.critical + matrixStats.high).toFixed(1)}%
+                    </span>
+                  </div>
+
+                  <p className="mt-auto pt-4 text-[11px] leading-relaxed text-muted-foreground">
+                    Rows show significance, columns show occurrence. Darker cells hold a larger share of risks;
+                    the small number in each cell is its score.
+                  </p>
                 </div>
               )}
-
-              {/* Heat map */}
-              <div className="rounded-lg border border-border bg-card overflow-hidden">
-                <div className="px-4 py-3 border-b border-border">
-                  <h2 className="text-xs font-semibold text-foreground">Risk assessment matrix</h2>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Distribution of risks across occurrence and significance</p>
-                </div>
-
-                <div className="p-4">
-                  {/* Legend */}
-                  <div className="flex gap-3 mb-3">
-                    {["critical", "high", "low"].map((z) => (
-                      <div key={z} className="flex items-center gap-1.5">
-                        <div className={`size-2 rounded-sm ${MATRIX_ZONE[z].dot}`} />
-                        <span className="text-[10px] text-muted-foreground">{MATRIX_ZONE[z].label}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-2 justify-center">
-                    {/* Y-axis */}
-                    <div className="flex items-center justify-center w-3 shrink-0">
-                      <span
-                        className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground"
-                        style={{ writingMode: "vertical-lr", transform: "rotate(180deg)" }}
-                      >
-                        Significance
-                      </span>
-                    </div>
-
-                    <div>
-                      {/* Column headers */}
-                      <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: "32px repeat(3, 48px)" }}>
-                        <div />
-                        {OCC_COLS.map((o) => (
-                          <div key={o} className="text-center">
-                            <p className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">{OCC_LABELS[o]}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Rows */}
-                      <div className="space-y-1.5">
-                        {SIG_ROWS.map((s) => (
-                          <div key={s} className="grid gap-1.5 items-center" style={{ gridTemplateColumns: "32px repeat(3, 48px)" }}>
-                            <div className="flex items-center justify-end pr-1.5">
-                              <span className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">{SIG_LABELS[s]}</span>
-                            </div>
-                            {OCC_COLS.map((o) => {
-                              const cell = matrixCells?.find((c) => c.occurence === o && c.significance === s)
-                              return <MatrixCell key={`${s}-${o}`} cell={cell} maxPercent={maxPercent} />
-                            })}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="text-center mt-2">
-                        <span className="text-[8px] font-semibold uppercase tracking-widest text-muted-foreground">← Occurrence →</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* How to read */}
-              <div className="rounded-lg border border-border bg-card p-4">
-                <h3 className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">How to read this matrix</h3>
-                <div className="grid grid-cols-2 gap-3 text-[11px]">
-                  <div>
-                    <p className="font-semibold text-foreground mb-0.5">Occurrence (horizontal)</p>
-                    <p className="text-muted-foreground">How frequently the risk is expected to occur.</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-foreground mb-0.5">Significance (vertical)</p>
-                    <p className="text-muted-foreground">The potential impact of the risk if it occurs.</p>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
-        </>
+        </section>
       )}
     </div>
   )

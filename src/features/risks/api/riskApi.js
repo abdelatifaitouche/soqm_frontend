@@ -8,8 +8,10 @@ export const getRisks = (params = {}) =>
   });
 
 
-export const getRiskMatrix = () => api.get("/soqm/risks/matrix/summary")
-
+export const getRiskMatrix = (componentId) =>
+  api.get("/soqm/risks/matrix/summary", {
+    params: componentId ? { component_id: componentId } : {},
+  })
 
 export const getRiskOptions = (params = {}) =>
   api.get("/risks/options", {

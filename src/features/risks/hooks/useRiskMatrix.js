@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { getRiskMatrix } from "@/features/risks/api/riskApi"
 
-export function useRiskMatrix() {
+export function useRiskMatrix(componentId = null) {
   const [cells, setCells]     = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
@@ -11,7 +11,7 @@ export function useRiskMatrix() {
     setLoading(true)
     setError(null)
 
-    getRiskMatrix()
+    getRiskMatrix(componentId)
       .then((res) => {
         if (cancelled) return
         setCells(res.cells ?? [])
@@ -20,9 +20,8 @@ export function useRiskMatrix() {
       .finally(() => { if (!cancelled) setLoading(false) })
 
     return () => { cancelled = true }
-  }, [])
+  }, [componentId]) // refetch when the component filter changes
 
-  // Build a lookup map: "sig-occ" → cell data for O(1) access in the grid
   const cellMap = Object.fromEntries(
     cells.map((c) => [`${c.significance}-${c.occurence}`, c])
   )

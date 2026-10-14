@@ -18,12 +18,12 @@ export const getRiskOptions = (params = {}) =>
 
 
 export const getRisk = (id) =>
-  api.get(`/soqm/risks/${id}`);
+  api.get(`/soqm/risks${id}`);
 
 // ===================== CREATE =====================
 
 export const createRisk = (data) =>
-  api.post("/soqm/risks/", data, {
+  api.post("/soqm/risks", data, {
     meta: {
       successMessage: "Risk created successfully",
     },
@@ -32,7 +32,7 @@ export const createRisk = (data) =>
 // ===================== UPDATE =====================
 
 export const updateRisk = (id, data) =>
-  api.patch(`/soqm/risks/${id}/`, data, {
+  api.patch(`/soqm/risks/${id}`, data, {
     meta: {
       successMessage: "Risk updated successfully",
     },
@@ -41,7 +41,7 @@ export const updateRisk = (id, data) =>
 // ===================== DELETE =====================
 
 export const deleteRisk = (id) =>
-  api.delete(`/soqm/risks/${id}/`, {
+  api.delete(`/soqm/risks/${id}`, {
     meta: {
       successMessage: "Risk deleted successfully",
     },

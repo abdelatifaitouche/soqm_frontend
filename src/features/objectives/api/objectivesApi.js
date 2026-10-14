@@ -22,7 +22,7 @@ export const getObjectiveRisks = (id, params = {}) =>
 // ===================== CREATE =====================
 
 export const createObjective = (data) =>
-  api.post("/soqm/objectives/", data, {
+  api.post("/soqm/objectives", data, {
     meta: {
       successMessage: "Objective created successfully",
     },
@@ -31,7 +31,7 @@ export const createObjective = (data) =>
 // ===================== UPDATE =====================
 
 export const updateObjective = (id, data) =>
-  api.patch(`/soqm/objectives/${id}/`, data, {
+  api.patch(`/soqm/objectives/${id}`, data, {
     meta: {
       successMessage: "Objective updated successfully",
     },
@@ -40,7 +40,7 @@ export const updateObjective = (id, data) =>
 // ===================== DELETE =====================
 
 export const deleteObjective = (id) =>
-  api.delete(`/soqm/objectives/${id}/`, {
+  api.delete(`/soqm/objectives/${id}`, {
     meta: {
       successMessage: "Objective deleted successfully",
     },

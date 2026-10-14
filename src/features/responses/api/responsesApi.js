@@ -5,7 +5,7 @@ import { api } from "@/api/api";
 export const getResponses  = (params = {})           => axiosClient.get(`/soqm/responses`, {params})
 export const getResponse  = (id)           => axiosClient.get(`/soqm/responses/${id}`,)
 export const createResponse = (data) =>
-  axiosClient.post("/soqm/responses/", data, {
+  axiosClient.post("/soqm/responses", data, {
     meta: {
       successMessage: "Response created successfully",
     },

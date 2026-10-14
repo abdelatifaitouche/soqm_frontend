@@ -18,7 +18,7 @@ export const getRiskOptions = (params = {}) =>
 
 
 export const getRisk = (id) =>
-  api.get(`/soqm/risks${id}`);
+  api.get(`/soqm/risks/${id}`);
 
 // ===================== CREATE =====================
 

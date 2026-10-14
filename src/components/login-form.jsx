@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth } from "@/features/auth/hooks/useAuth"
 
 export function LoginForm() {
   const { login } = useAuth()
@@ -13,7 +13,7 @@ export function LoginForm() {
  const handleSubmit = async (e) => {
   e.preventDefault()
   setError("")
-  setLoading(true)
+  setLoading(true)  
   try {
     await login(email, password)
     navigate("/dashboard")

@@ -3,28 +3,17 @@ import PrivateRoute from "./PrivateRoute"
 import PublicRoute from "./PublicRoute"
 import AppLayout from "@/layouts/AppLayout"
 import AuthLayout from "@/layouts/AuthLayout"
-import LoginPage from "@/pages/auth/login"
-import DashboardPage from "@/pages/dashboard/dashboard"
+import LoginPage from "@/features/auth/pages/login"
 import NotFoundPage from "@/pages/NotFoundPage"
-import IsqmComponents from "@/pages/isqm_components/IsqmComponents"
-import UsersPage from "@/pages/users/Users"
-import Departments from "@/pages/departments/Departments"
-import Objectives from "@/pages/objectives/Objectives"
-import CreateObjective from "@/pages/objectives/CreateObjective"
-import ObjectiveDetails from "@/pages/objectives/ObjectiveDetails"
-import CreateComponent from "@/pages/isqm_components/CreateComponent"
-import RiskMatrix from "@/pages/risks/RiskMatrix"
-import ComponentDetails from "@/pages/isqm_components/ComponentDetails"
-import Responses from "@/pages/risks/responses/Responses"
-import ResponseDetails from "@/pages/risks/responses/ResponseDetails"
-import CreateRisk from "@/pages/risks/CreateRisk"
-import RiskDetails from "../pages/risks/RiskDetails"
-import Employees from "@/pages/employees/Employees"
-import CreateEmployee from "@/pages/employees/CreateEmployee"
-import CreateResponse from "@/pages/risks/responses/CreateResponse"
-import Risks from "@/pages/risks/Risks"
-import Matrix from "@/pages/risks/Matrix"
-import Documents from "@/pages/documents/Documents"
+import { riskRoutes } from "@/features/risks/routes"
+import { responseRoutes } from "@/features/responses/routes"
+import { objectiveRoutes } from "@/features/objectives/routes"
+import { isqmComponentsRoutes } from "@/features/isqm_components/routes"
+import { employeeRoutes } from "@/features/employees/routes"
+import { documentRoutes } from "@/features/documents/routes"
+import { departmentRoutes } from "@/features/departments/routes"
+import { userRoutes } from "@/features/auth/routes"
+import { dashboardRoutes } from "@/features/dashboard/routes"
 
 export default function AppRouter() {
   return (
@@ -40,32 +29,15 @@ export default function AppRouter() {
         {/* Protected */}
         <Route element={<PrivateRoute />}>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/components" element={<IsqmComponents />} />
-            <Route path="/components/create" element={<CreateComponent />} />
-            <Route path="/components/:id" element={<ComponentDetails />} />
-
-
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/employees" element={<Employees />} />
-            <Route path="/employees/create" element={<CreateEmployee />} />
-            <Route path="/departments" element={<Departments />} />
-            {/* add more protected routes here */}
-            
-            
-            <Route path="/objectives" element={<Objectives />} />
-            <Route path="/objectives/create" element={<CreateObjective />} />
-            <Route path="/objectives/:id"     element={<ObjectiveDetails />} />
-
-            <Route path="/risks"     element={<Risks />} />
-            <Route path="/risks/create"     element={<CreateRisk />} />
-            <Route path="/risks/:id"     element={<RiskDetails />} />
-
-            <Route path="/responses"     element={<Responses />} />
-            <Route path="/responses/create"     element={<CreateResponse />} />
-             <Route path="/responses/:id"     element={<ResponseDetails />} />
-
-             <Route path="/documents"     element={<Documents />} />
+            {dashboardRoutes}
+            {isqmComponentsRoutes}
+            {employeeRoutes}
+            {documentRoutes}
+            {departmentRoutes}
+            {userRoutes}            
+            {objectiveRoutes}
+            {riskRoutes}
+            {responseRoutes}
           </Route>
         </Route>
 

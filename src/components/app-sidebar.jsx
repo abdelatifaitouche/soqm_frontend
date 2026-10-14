@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom"
 import { useState } from "react"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth } from "@/features/auth/hooks/useAuth"
 import {
   Sidebar,
   SidebarContent,
@@ -31,7 +31,7 @@ import {
   ChevronRight,
   Lock,
 } from "lucide-react"
-import { useRole } from "@/hooks/useRole"
+import { useRole } from "@/features/auth/hooks/useRole"
 
 // `comingSoon: true` items render as inert (no NavLink, no route match, no click)
 // with a small "Soon" badge instead of being wired up — flip it off once the
@@ -62,18 +62,12 @@ const navigation = [
     items: [
       { title: "SOQM Components", href: "/components", icon: ShieldCheck },
       { title: "Quality Objectives", href: "/objectives", icon: Target },
-    ],
-  },
-  {
-    label: "Risk Management",
-    icon: AlertTriangle,
-    defaultOpen: true,
-    items: [
       { title: "Risks", href: "/risks", icon: AlertTriangle },
       { title: "Responses", href: "/responses", icon: AlertTriangle },
       { title: "Evidence & Monitoring", href: "/monitoring", icon: SearchCheck, comingSoon: true },
     ],
   },
+
   {
     label: "Operations",
     icon: Workflow,

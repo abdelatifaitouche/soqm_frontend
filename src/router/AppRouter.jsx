@@ -14,6 +14,7 @@ import { documentRoutes } from "@/features/documents/routes"
 import { departmentRoutes } from "@/features/departments/routes"
 import { userRoutes } from "@/features/auth/routes"
 import { dashboardRoutes } from "@/features/dashboard/routes"
+import {findingsRoutes} from "@/features/findings/routes"
 
 export default function AppRouter() {
   return (
@@ -38,6 +39,8 @@ export default function AppRouter() {
             {objectiveRoutes}
             {riskRoutes}
             {responseRoutes}
+
+            {findingsRoutes} 
           </Route>
         </Route>
 

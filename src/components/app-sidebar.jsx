@@ -69,6 +69,15 @@ const navigation = [
   },
 
   {
+    label: "Monitoring & Findings",
+    icon: FileStack,
+    defaultOpen: false,
+    items: [
+      { title: "EQR Reviews", href: "/eqr", icon: FileStack , comingSoon:true},
+      { title: "Findings & Remediations", href: "/findings", icon: CheckSquare },
+    ],
+  },
+  {
     label: "Operations",
     icon: Workflow,
     defaultOpen: false,
@@ -77,15 +86,7 @@ const navigation = [
       { title: "Procedures", href: "/procedures", icon: ClipboardList, comingSoon: true },
     ],
   },
-  {
-    label: "Monitoring & Findings",
-    icon: FileStack,
-    defaultOpen: false,
-    items: [
-      { title: "EQR Reviews", href: "/eqr", icon: FileStack, comingSoon: true },
-      { title: "Findings & Remediations", href: "/findings", icon: CheckSquare, comingSoon: true },
-    ],
-  },
+  
   {
     label: "Organization",
     icon: Building2,

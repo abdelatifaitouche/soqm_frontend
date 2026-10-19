@@ -75,6 +75,7 @@ const navigation = [
     items: [
       { title: "EQR Reviews", href: "/eqr", icon: FileStack , comingSoon:true},
       { title: "Findings & Remediations", href: "/findings", icon: CheckSquare },
+      { title: "Rca Tracker", href: "/rca_tracker", icon: CheckSquare },
     ],
   },
   {

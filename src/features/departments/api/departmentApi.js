@@ -2,18 +2,18 @@ import { api } from "@/api/api";
 // ===================== GET =====================
 
 export const getDepts = () =>
-  api.get("/organization/departments");
+  api.get("/org/departments");
 
 export const getDept = (id) =>
-  api.get(`/organization/departments/${id}/`);
+  api.get(`/org/departments/${id}`);
 
 export const getDeptTree = () =>
-  api.get("/api/v1/departments/tree/");
+  api.get("/api/v1/org/tree/");
 
 // ===================== CREATE =====================
 
 export const createDept = (data) =>
-  api.post("/organization/departments/", data, {
+  api.post("/org/departments/", data, {
     meta: {
       successMessage: "Department created successfully",
     },

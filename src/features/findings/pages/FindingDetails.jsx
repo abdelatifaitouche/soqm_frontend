@@ -2,11 +2,11 @@ import { useParams, useNavigate } from "react-router-dom"
 import {
   ArrowLeft, AlertCircle, Check,
   CircleDashed, FileSearch, Wrench, ClipboardCheck, CheckCircle2,
-  AlertTriangle, ShieldAlert, ListChecks, Microscope,
+  AlertTriangle, ShieldAlert, ListChecks,
 } from "lucide-react"
 import { useFinding } from "@/features/findings/hooks/useFinding"
 import { useDepts } from "@/features/departments/hooks/useDept"
-import RootCauseSection from "./RootCauseAnalysis"
+import RootCauseSection from "@/features/findings/pages/RootCauseAnalysis"
 
 // ── Config (match backend enums) ──────────────────────────────────────────────
 // Candidates for a shared file (e.g. features/findings/data/findingConfig.js)
@@ -68,13 +68,6 @@ const SOURCE_LABEL = {
   internal_engagement_review: "Internal engagement review",
   restatements: "Restatements",
   other_quality_events: "Other quality events",
-}
-
-// Root cause analysis progress. Only `not_started` is confirmed by the backend so far.
-const RCA_STATUS_CONFIG = {
-  not_started: { label: "Not started", cls: "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-800" },
-  in_progress: { label: "In progress", cls: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900" },
-  completed:   { label: "Completed",   cls: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900" },
 }
 
 const PILL = "inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border whitespace-nowrap"
@@ -170,8 +163,6 @@ function StatusStepper({ status }) {
     </ol>
   )
 }
-
-
 
 // ── Action plans ──────────────────────────────────────────────────────────────
 
@@ -291,7 +282,7 @@ function FindingDetails() {
             </p>
           </Section>
 
-          <RootCauseSection rca={finding.root_cause_analysis} />
+          <RootCauseSection rca={finding.root_cause_analysis} findingId={finding.id} />
           <ActionPlansSection />
         </div>
 

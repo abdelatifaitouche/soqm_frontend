@@ -14,3 +14,7 @@ export const createFinding = (payload) =>
 
 export const getFindingById = (findingId) =>
   api.get(`/finding/${findingId}`)
+
+
+export const startRootCauseAnalysis = (findingId, payload) =>
+  api.patch(`/finding/${findingId}/root_cause_analyses`, payload)

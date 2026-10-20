@@ -24,3 +24,6 @@ export const completeAction = (actionId) =>
 
 export const updateAction = (actionId, payload) =>
   api.patch(`/action/${actionId}`, payload);
+
+
+export const deleteAction = (actionId) => api.delete(`/action/${actionId}`)

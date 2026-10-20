@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { getEmployees } from "@/features/employees/api/employeesApi"
 
 // ============================================================
-// EMPLOYEE ENUMS
+// ENUMS
+// Values are what the API receives as filters. Levels are stored with a space
+// ("SENIOR MANAGER"), as the list payload shows.
 // ============================================================
 
 export const EMPLOYEE_STATUS = {
@@ -19,143 +21,67 @@ export const EMPLOYEE_LEVEL = {
   MID: "MID",
   SENIOR: "SENIOR",
   MANAGER: "MANAGER",
-  SENIOR_MANAGER: "SENIOR_MANAGER",
+  SENIOR_MANAGER: "SENIOR MANAGER",
   DIRECTOR: "DIRECTOR",
   PARTNER: "PARTNER",
 }
 
 // ============================================================
-// HOOK: useEmployees with pagination & filtering
+// HOOK — server-side pagination and filtering
+// API returns: { page, size, total, items: [...] }
+// filters: { status, level, job_title, department_id }
 // ============================================================
 
-/**
- * Backend returns: [] or [{id, first_name, last_name, ...}, ...]
- * No pagination info in response, so we calculate it client-side
- */
-
-const ITEMS_PER_PAGE = 10
-
-export function useEmployees(filters = {}, page = 1) {
+export function useEmployees(filters = {}, page = 1, size = 10) {
   const [employees, setEmployees] = useState([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [pagination, setPagination] = useState({
-    total: 0,
-    page: 1,
-    total_pages: 0,
-  })
+  const [reloadKey, setReloadKey] = useState(0)
+
+  const totalPages = Math.max(1, Math.ceil(total / size))
 
   useEffect(() => {
+    let cancelled = false
+
     setLoading(true)
     setError(null)
 
-    // Build params
-    const params = {
-      ...filters,
-      page,
-    }
+    // Only send filters that have a real value
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters).filter(([, v]) => v !== "" && v != null)
+    )
 
-
-    getEmployees(params)
+    getEmployees({ ...cleanFilters, page, size })
       .then((res) => {
-
-        // Your backend returns: [] or [{...}, {...}]
-        if (!res) {
-          setEmployees([])
-          setPagination({ total: 0, page: 1, total_pages: 0 })
-          return
-        }
-
-        // Check if response is an array (YOUR BACKEND FORMAT)
-        if (Array.isArray(res)) {
-
-          // Get all employees from array
-          const allEmployees = res
-
-          // Calculate pagination client-side
-          const total = allEmployees.length
-          const totalPages = Math.ceil(total / ITEMS_PER_PAGE)
-
-          // Get employees for current page
-          const startIndex = (page - 1) * ITEMS_PER_PAGE
-          const endIndex = startIndex + ITEMS_PER_PAGE
-          const pageEmployees = allEmployees.slice(startIndex, endIndex)
-
-          setEmployees(pageEmployees)
-          setPagination({
-            total,
-            page,
-            total_pages: totalPages || 1,
-          })
-
-        
-          return
-        }
-
-        // Fallback: Try other formats for future API changes
-        let parsedEmployees = []
-        let parsedPagination = { total: 0, page: 1, total_pages: 0 }
-
-        // Format 2: { data: [...], pagination: {...} }
-        if (res.data && Array.isArray(res.data)) {
-          parsedEmployees = res.data
-          parsedPagination = res.pagination || {
-            total: res.data.length,
-            page: 1,
-            total_pages: 1,
-          }
-        }
-        // Format 3: { employees: [...], total, page, total_pages }
-        else if (res.employees && Array.isArray(res.employees)) {
-          parsedEmployees = res.employees
-          parsedPagination = {
-            total: res.total || 0,
-            page: res.page || 1,
-            total_pages: res.total_pages || Math.ceil((res.total || 0) / ITEMS_PER_PAGE),
-          }
-        }
-        // Format 4: { items: [...] }
-        else if (res.items && Array.isArray(res.items)) {
-          parsedEmployees = res.items
-          parsedPagination = {
-            total: res.total || res.items.length,
-            page: res.page || 1,
-            total_pages: res.total_pages || 1,
-          }
-        }
-        // Fallback: Try to find any array
-        else {
-          const arrayProp = Object.keys(res).find(
-            (key) => Array.isArray(res[key]) && res[key].length > 0
-          )
-
-          if (arrayProp) {
-            parsedEmployees = res[arrayProp]
-            parsedPagination = {
-              total: res.total || parsedEmployees.length,
-              page: res.page || 1,
-              total_pages: res.total_pages || 1,
-            }
-          } else {
-            parsedEmployees = []
-            parsedPagination = { total: 0, page: 1, total_pages: 0 }
-          }
-        }
-
-        setEmployees(parsedEmployees)
-        setPagination(parsedPagination)
+        if (cancelled) return
+        setEmployees(res?.items ?? [])
+        setTotal(res?.total ?? 0)
       })
       .catch((err) => {
-      
-
+        if (cancelled) return
         setError(err)
         setEmployees([])
-        setPagination({ total: 0, page: 1, total_pages: 0 })
+        setTotal(0)
       })
       .finally(() => {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       })
-  }, [JSON.stringify(filters), page])
 
-  return { employees, setEmployees, loading, error, pagination }
+    return () => { cancelled = true }
+  }, [JSON.stringify(filters), page, size, reloadKey])
+
+  const refetch = useCallback(() => setReloadKey((k) => k + 1), [])
+
+  return {
+    employees,
+    setEmployees,
+    total,
+    totalPages,
+    // Kept so existing callers using the old shape keep working
+    pagination: { total, page, size, total_pages: totalPages },
+    loading,
+    error,
+    refetch,
+  }
 }

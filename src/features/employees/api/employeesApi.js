@@ -1,39 +1,38 @@
 import { api } from "@/api/api";
 
 // ===================== GET =====================
-
 export const getEmployees = (params = {}) => {
-  // Build query params - only include non-empty values
-  const queryParams = {
-    page: params.page || 1,
-  }
- 
-  // Add optional filters
-  if (params.status) {
-    queryParams.status = params.status
-  }
-  if (params.level) {
-    queryParams.level = params.level
-  }
- 
-  return api.get("/employee", { params: queryParams })
+  const query = Object.fromEntries(
+    Object.entries({ page: 1, size: 10, ...params }).filter(([, v]) => v !== "" && v != null)
+  )
+  return api.get("/org/employee", { params: query })
 }
 
 export const getEmployeeOptions = () =>
-  api.get("/employee/options");
+  api.get("/org/employee/employees/options");
 
 export const getMyProfile = () =>
-  api.get("/profile/me");
+  api.get("/org/profile/me");
 
 export const getEmployee = (id) =>
-  api.get(`/employee/${id}`);
+  api.get(`/org/employee/${id}`);
 
 // ===================== CREATE =====================
 
 export const createEmployee = (data) =>
-  api.post("/employee/", data, {
+  api.post("/org/employee/", data, {
     meta: {
       successMessage: "employee created successfully",
     },
   });
 
+
+
+  export const updateEmployee = (id, data) =>
+  api.patch(`/org/employee/${id}`, data, { meta: { successMessage: "Employee updated" } })
+
+export const blockEmployee = (id) =>
+  api.post(`/org/employee/${id}/block`, null, { meta: { successMessage: "Employee blocked" } })
+
+export const activateEmployee = (id) =>
+  api.post(`/org/employee/${id}/activate`, null, { meta: { successMessage: "Employee activated" } })

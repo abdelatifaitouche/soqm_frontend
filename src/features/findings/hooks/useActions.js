@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { getFindingActions } from "@/features/findings/api/actionsApi"
+import { getFindingActions, deleteAction } from "@/features/findings/api/actionsApi"
 
 export function useActions(findingId, page = 1, status = "") {
   const [items, setItems]     = useState([])
@@ -16,12 +16,7 @@ export function useActions(findingId, page = 1, status = "") {
     setLoading(true)
     setError(null)
 
-    const params = {
-      page,
-      ...(status && { status }),
-    }
-
-    getFindingActions(findingId, params)
+    getFindingActions(findingId, { page, ...(status && { status }) })
       .then((res) => {
         if (cancelled) return
         const body = res
@@ -35,4 +30,24 @@ export function useActions(findingId, page = 1, status = "") {
   }, [findingId, page, status])
 
   return { items, total, totalPages, loading, error, setItems }
+}
+
+export function useDeleteAction() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState(null)
+
+  const mutate = async (actionId) => {
+    setLoading(true)
+    setError(null)
+    try {
+      await deleteAction(actionId) // 204 No Content
+    } catch (err) {
+      setError(err)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { mutate, loading, error }
 }

@@ -1,12 +1,21 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, Fragment } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import {
   ArrowLeft, AlertCircle, Check, CircleDashed, FileSearch,
   Wrench, ClipboardCheck, CheckCircle2, AlertTriangle,
   ShieldAlert, ListChecks, Plus, Loader2, X, Calendar,
-  ChevronLeft, ChevronRight, CheckSquare, Clock, XCircle,
+  ChevronLeft, ChevronRight, CheckSquare, Pencil,
 } from "lucide-react"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet"
 import { useFinding } from "@/features/findings/hooks/useFinding"
+import { useUpdateFinding } from "@/features/findings/hooks/useUpdateFinding"
 import { useDepts } from "@/features/departments/hooks/useDept"
 import { useActions } from "@/features/findings/hooks/useActions"
 import { createAction } from "@/features/findings/api/actionsApi"
@@ -60,6 +69,17 @@ function fmtDate(val) {
   const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(val) ? `${val}T00:00:00` : val)
   if (isNaN(d.getTime())) return "—"
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+}
+
+// FastAPI can return `detail` as a string or as a list of validation errors.
+function extractError(err, fallback) {
+  const detail = err?.response?.data?.detail
+  if (typeof detail === "string") return detail
+  if (Array.isArray(detail)) {
+    const msg = detail.map((d) => d.msg).filter(Boolean).join(". ")
+    if (msg) return msg
+  }
+  return fallback
 }
 
 // ── Shared ────────────────────────────────────────────────────────────────────
@@ -121,6 +141,149 @@ function StatusStepper({ status }) {
   )
 }
 
+// ── Edit finding drawer ───────────────────────────────────────────────────────
+// Mounted only while open, so it always starts from the latest saved values.
+// Only fields that changed are sent.
+
+function EditFindingForm({ finding, onSave, onClose }) {
+  const [title, setTitle] = useState(finding.finding_title ?? "")
+  const [source, setSource] = useState(finding.finding_source ?? "")
+  const [description, setDescription] = useState(finding.description ?? "")
+  const [saving, setSaving] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState("")
+
+  const cleanTitle = title.trim()
+  const cleanDescription = description.trim()
+
+  const errors = {
+    source: !source ? "Select a source." : "",
+    description: !cleanDescription ? "Describe what was found." : "",
+  }
+  const hasErrors = Object.values(errors).some(Boolean)
+
+  const changes = {}
+  if (cleanTitle !== (finding.finding_title ?? "")) changes.finding_title = cleanTitle
+  if (source !== (finding.finding_source ?? "")) changes.finding_source = source
+  if (cleanDescription !== (finding.description ?? "")) changes.description = cleanDescription
+  const hasChanges = Object.keys(changes).length > 0
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setSubmitted(true)
+    setError("")
+    if (hasErrors) return
+    if (!hasChanges) { onClose(); return }
+
+    setSaving(true)
+    try {
+      await onSave(changes)
+      onClose()
+    } catch (err) {
+      setError(extractError(err, "Couldn’t save the changes. Try again."))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} noValidate className="flex flex-col flex-1 min-h-0">
+      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-5">
+        <div>
+          <label htmlFor="finding-title" className="block text-sm font-medium text-foreground mb-1.5">Title</label>
+          <input
+            id="finding-title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            disabled={saving}
+            placeholder="A short name for this finding"
+            className={INPUT}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="finding-source" className="block text-sm font-medium text-foreground mb-1.5">
+            Source <span className="text-muted-foreground font-normal">*</span>
+          </label>
+          <select
+            id="finding-source"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            disabled={saving}
+            className={`${INPUT} cursor-pointer ${submitted && errors.source ? "border-red-400" : ""}`}
+          >
+            {!source && <option value="">Select a source</option>}
+            {Object.entries(SOURCE_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          {submitted && errors.source && <p className="text-xs text-red-600 mt-1.5">{errors.source}</p>}
+        </div>
+
+        <div>
+          <label htmlFor="finding-description" className="block text-sm font-medium text-foreground mb-1.5">
+            Description <span className="text-muted-foreground font-normal">*</span>
+          </label>
+          <textarea
+            id="finding-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={8}
+            disabled={saving}
+            className={`${INPUT} resize-y leading-relaxed ${submitted && errors.description ? "border-red-400" : ""}`}
+          />
+          {submitted && errors.description && <p className="text-xs text-red-600 mt-1.5">{errors.description}</p>}
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Severity, department and status aren’t changed here.
+        </p>
+
+        {error && (
+          <div role="alert" className="flex items-start gap-2 text-sm text-red-600">
+            <AlertCircle className="size-4 shrink-0 mt-0.5" />
+            {error}
+          </div>
+        )}
+      </div>
+
+      <SheetFooter>
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={saving}
+          className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={saving || !hasChanges}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#3B1F6A] rounded-lg hover:bg-[#52298F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving && <Loader2 className="size-4 animate-spin" />}
+          Save changes
+        </button>
+      </SheetFooter>
+    </form>
+  )
+}
+
+function EditFindingDrawer({ open, onOpenChange, finding, onSave }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-lg flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="font-mono">{finding.finding_ref}</SheetTitle>
+          <SheetDescription>Update the title, source or description of this finding.</SheetDescription>
+        </SheetHeader>
+        {open && <EditFindingForm finding={finding} onSave={onSave} onClose={() => onOpenChange(false)} />}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 // ── Create action modal ───────────────────────────────────────────────────────
 
 function CreateActionModal({ findingId, onClose, onCreated }) {
@@ -151,7 +314,6 @@ function CreateActionModal({ findingId, onClose, onCreated }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
-        {/* Header */}
         <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-border">
           <div>
             <h2 className="text-base font-semibold text-foreground">New action plan</h2>
@@ -163,7 +325,6 @@ function CreateActionModal({ findingId, onClose, onCreated }) {
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-5 space-y-4">
           <div>
             <label className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">
@@ -203,7 +364,6 @@ function CreateActionModal({ findingId, onClose, onCreated }) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
           <button onClick={onClose} disabled={saving}
             className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60">
@@ -223,34 +383,36 @@ function CreateActionModal({ findingId, onClose, onCreated }) {
 // ── Pagination ────────────────────────────────────────────────────────────────
 
 function Pagination({ page, totalPages, onChange }) {
-  if (totalPages <= 1) return null
+  // Hooks run before the early return so the hook order never changes between renders.
   const pages = useMemo(() => {
     const set = new Set([1, totalPages, page - 1, page, page + 1])
     return [...set].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b)
   }, [page, totalPages])
 
+  if (totalPages <= 1) return null
+
   return (
     <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
       <p className="text-xs text-muted-foreground">Page {page} of {totalPages}</p>
       <div className="flex items-center gap-1">
-        <button onClick={() => onChange(page - 1)} disabled={page <= 1}
+        <button onClick={() => onChange(page - 1)} disabled={page <= 1} aria-label="Previous page"
           className="flex size-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 transition-colors">
           <ChevronLeft className="size-3.5" />
         </button>
         {pages.map((p, i) => (
-          <>
+          <Fragment key={p}>
             {i > 0 && pages[i - 1] !== p - 1 && (
-              <span key={`e-${p}`} className="text-xs text-muted-foreground px-0.5">…</span>
+              <span className="text-xs text-muted-foreground px-0.5">…</span>
             )}
-            <button key={p} onClick={() => onChange(p)}
+            <button onClick={() => onChange(p)} aria-current={p === page ? "page" : undefined}
               className={`flex size-7 items-center justify-center rounded-md text-xs font-medium transition-colors ${
                 p === page ? "bg-[#3B1F6A] text-white" : "border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}>
               {p}
             </button>
-          </>
+          </Fragment>
         ))}
-        <button onClick={() => onChange(page + 1)} disabled={page >= totalPages}
+        <button onClick={() => onChange(page + 1)} disabled={page >= totalPages} aria-label="Next page"
           className="flex size-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 transition-colors">
           <ChevronRight className="size-3.5" />
         </button>
@@ -333,21 +495,18 @@ function ActionPlansSection({ findingId }) {
           <>
             <ul className="space-y-2">
               {items.map((action) => {
-                const stCfg = ACTION_STATUS_CONFIG[action.status] ?? ACTION_STATUS_CONFIG.PENDING
+                const stCfg = ACTION_STATUS_CONFIG[action.status] ?? ACTION_STATUS_CONFIG.DRAFT
                 const StIcon = stCfg.icon
                 return (
                   <li
-  key={action.id}
-  onClick={() => navigate(`/actions/${action.id}`)}
-  className="flex items-center gap-4 px-4 py-3.5 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors cursor-pointer min-w-0"
->
+                    key={action.id}
+                    onClick={() => navigate(`/actions/${action.id}`)}
+                    className="flex items-center gap-4 px-4 py-3.5 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors cursor-pointer min-w-0"
+                  >
                     <div className="flex-1 min-w-0 space-y-1">
-                      <p
-  className="text-sm font-medium text-foreground truncate max-w-full"
-  title={action.title}
->
-  {action.title}
-</p>
+                      <p className="text-sm font-medium text-foreground truncate max-w-full" title={action.title}>
+                        {action.title}
+                      </p>
                       <div className="flex items-center gap-3 flex-wrap">
                         {action.estimated_completion_date && (
                           <div className="flex items-center gap-1">
@@ -416,12 +575,20 @@ function PageSkeleton() {
 function FindingDetails() {
   const { id }   = useParams()
   const navigate = useNavigate()
-  const { finding, loading, error }         = useFinding(id)
-  const { depts, loading: deptsLoading }    = useDepts()
+  const { finding: fetched, loading, error } = useFinding(id)
+  const { depts, loading: deptsLoading }     = useDepts()
+  const { update }                           = useUpdateFinding(id)
+
+  // The update endpoint returns 204 (no body), so after a save we apply the
+  // changes we sent on top of the fetched finding. A fresh fetch replaces them.
+  const [overrides, setOverrides] = useState({})
+  const [editOpen, setEditOpen]   = useState(false)
+
+  useEffect(() => { setOverrides({}) }, [fetched])
 
   if (loading) return <PageSkeleton />
 
-  if (error || !finding) return (
+  if (error || !fetched) return (
     <div className="flex items-center justify-center h-64">
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2 text-destructive">
@@ -438,6 +605,13 @@ function FindingDetails() {
     </div>
   )
 
+  const finding = { ...fetched, ...overrides }
+
+  const handleSave = async (changes) => {
+    await update(changes) // throws on failure; the drawer shows the error and stays open
+    setOverrides((prev) => ({ ...prev, ...changes, updated_at: new Date().toISOString() }))
+  }
+
   const deptList   = Array.isArray(depts) ? depts : depts?.items ?? []
   const deptName   = deptList.find((d) => d.id === finding.department)?.name
 
@@ -450,21 +624,37 @@ function FindingDetails() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-16">
-      {/* Back */}
-      <button onClick={() => navigate("/findings")}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors group">
-        <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" />
-        Findings
-      </button>
+      {/* Top bar */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => navigate("/findings")}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors group">
+          <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" />
+          Findings
+        </button>
+
+        <button
+          onClick={() => setEditOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+        >
+          <Pencil className="size-3.5" />
+          Edit
+        </button>
+      </div>
 
       {/* Header card */}
       <header className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="p-6 sm:p-8">
           <p className="text-sm text-muted-foreground mb-1">Finding</p>
-          <h1 className="text-5xl font-semibold tracking-tight text-foreground font-mono leading-none mb-5">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground font-mono leading-none">
             {finding.finding_ref}
           </h1>
-          <div className="flex items-center gap-2 flex-wrap">
+          {finding.finding_title && (
+            <p className="mt-3 text-lg font-medium text-foreground/90 leading-snug break-words">
+              {finding.finding_title}
+            </p>
+          )}
+
+          <div className="flex items-center gap-2 flex-wrap mt-5">
             <span className={`${PILL} ${status.cls}`}>
               <StatusIcon className="size-3" /> {status.label}
             </span>
@@ -485,22 +675,18 @@ function FindingDetails() {
 
       {/* Content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start min-w-0">
-  <div className="min-w-0 space-y-6">
-          {/* Description */}
+        <div className="min-w-0 space-y-6">
           <Section title="Description">
             <p className="text-[15px] text-foreground/90 leading-7 max-w-[68ch] whitespace-pre-line">
               {finding.description || <span className="italic text-muted-foreground">No description provided</span>}
             </p>
           </Section>
 
-          {/* RCA */}
           <RootCauseSection rca={finding.root_cause_analysis} findingId={finding.id} />
 
-          {/* Action plans */}
           <ActionPlansSection findingId={finding.id} />
         </div>
 
-        {/* Sidebar */}
         <aside className="space-y-6">
           <Section title="Details">
             <dl className="-my-1">
@@ -520,6 +706,8 @@ function FindingDetails() {
           </Section>
         </aside>
       </div>
+
+      <EditFindingDrawer open={editOpen} onOpenChange={setEditOpen} finding={finding} onSave={handleSave} />
     </div>
   )
 }

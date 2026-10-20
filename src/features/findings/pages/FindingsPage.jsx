@@ -238,7 +238,7 @@ function FindingsPage() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-border bg-muted/20">
-                  {["Ref", "Source", "Severity", "Status"].map((h) => (
+                  {["Ref","title", "Source", "Severity", "Status"].map((h) => (
                     <th key={h} className="text-left text-xs font-medium text-muted-foreground px-5 py-3 whitespace-nowrap">
                       {h}
                     </th>
@@ -287,6 +287,15 @@ function FindingsPage() {
                         </span>
                       </td>
 
+                      <td className="px-5 py-3.5 max-w-[100px]">
+  <span
+    className="block truncate text-sm text-foreground"
+    title={f.finding_title || ""}
+  >
+    {f.finding_title || ""}
+  </span>
+</td>
+
                       <td className="px-5 py-3.5">
                         <span className="text-sm text-foreground">
                           {SOURCE_LABEL[f.finding_source] ?? formatLabel(f.finding_source)}
@@ -299,7 +308,7 @@ function FindingsPage() {
                       <td className="px-5 py-3.5 w-px">
                         <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex justify-end">
                           <button
-                            onClick={(e) => { e.stopPropagation(); navigate(`/findings/${f.id}`) }}
+                            
                             className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors"
                           >
                             <ArrowUpRight className="size-3" /> View

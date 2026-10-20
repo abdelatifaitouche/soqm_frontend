@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import {
-  Plus, AlertCircle, ArrowUpRight, X,
+  Plus, AlertCircle, ArrowUpRight, X, ChevronUp, ChevronDown,
   CircleDashed, FileSearch, Wrench, ClipboardCheck, CheckCircle2,
   AlertTriangle, ShieldAlert, ClipboardList,
 } from "lucide-react"
 import { useFindings } from "@/features/findings/hooks/useFindings"
+import { useDepts } from "@/features/departments/hooks/useDept"
 import Pagination from "@/shared/components/Pagination"
 
 // ── Enums (match backend) ─────────────────────────────────────────────────────
@@ -119,13 +120,17 @@ function SkeletonRows({ cols }) {
 }
 
 const SELECT_CLS =
-  "h-9 rounded-lg border border-input bg-card px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] transition-colors cursor-pointer"
+  "h-9 rounded-lg border border-input bg-card px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] transition-colors cursor-pointer disabled:opacity-50"
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const SIZE = 10
 // Newest first. The list payload has no date column to sort by in the UI yet.
-const ORDER_BY = { columns: ["created_at"], direction: "desc" }
+const DEFAULT_ORDER_BY = { columns: ["created_at"], direction: "desc" }
+const REF_ORDER_COLUMN = "finding_ref"
+
+// Natural ordering: "QM2" comes before "QM10", and prefixes group together (AD…, then QM…).
+const refCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
 const COLS = 5
 
 function FindingsPage() {
@@ -135,24 +140,53 @@ function FindingsPage() {
   const [status, setStatus] = useState("")
   const [source, setSource] = useState("")
   const [severity, setSeverity] = useState("")
+  const [department, setDepartment] = useState("")
+  const [orderBy, setOrderBy] = useState(DEFAULT_ORDER_BY)
 
   const filters = useMemo(
     () => ({
       ...(status && { status }),
       ...(source && { finding_source: source }),
       ...(severity && { deficiency_severity: severity }),
+      ...(department && { department_id: department }),
     }),
-    [status, source, severity]
+    [status, source, severity, department]
   )
 
-  const { items, total, totalPages, loading, error } = useFindings(filters, page, SIZE, ORDER_BY)
+  const { items, total, totalPages, loading, error } = useFindings(filters, page, SIZE, orderBy)
 
-  const isFiltered = !!(status || source || severity)
+  // Department options. The endpoint may return a plain array or { items }.
+  const { depts, loading: deptsLoading } = useDepts()
+  const deptList = Array.isArray(depts) ? depts : depts?.items ?? []
+
+  const isFiltered = !!(status || source || severity || department)
+
+  const refSorted = orderBy.columns[0] === REF_ORDER_COLUMN
+  const refDirection = refSorted ? orderBy.direction : null
+
+  // Ref header cycles: ascending → descending → back to newest first.
+  const handleRefSort = () => {
+    setOrderBy((prev) => {
+      if (prev.columns[0] !== REF_ORDER_COLUMN) return { columns: [REF_ORDER_COLUMN], direction: "asc" }
+      if (prev.direction === "asc") return { columns: [REF_ORDER_COLUMN], direction: "desc" }
+      return DEFAULT_ORDER_BY
+    })
+    setPage(1)
+  }
+
+  // The server should already return this order. Sorting the page again naturally
+  // keeps it right within a page even if the backend compares refs as plain text.
+  const sortedItems = useMemo(() => {
+    if (!refSorted) return items
+    const sign = refDirection === "desc" ? -1 : 1
+    return [...items].sort((a, b) => sign * refCollator.compare(a.finding_ref ?? "", b.finding_ref ?? ""))
+  }, [items, refSorted, refDirection])
 
   const clearAll = () => {
     setStatus("")
     setSource("")
     setSeverity("")
+    setDepartment("")
     setPage(1)
   }
 
@@ -202,6 +236,13 @@ function FindingsPage() {
 
       {/* Secondary filters */}
       <div className="flex items-center gap-2 flex-wrap">
+        <select value={department} onChange={pick(setDepartment)} disabled={deptsLoading} aria-label="Filter by department" className={SELECT_CLS}>
+          <option value="">All departments</option>
+          {deptList.map((d) => (
+            <option key={d.id} value={d.id}>{d.name}</option>
+          ))}
+        </select>
+
         <select value={source} onChange={pick(setSource)} aria-label="Filter by source" className={SELECT_CLS}>
           <option value="">All sources</option>
           {Object.entries(SOURCE_LABEL).map(([val, label]) => (
@@ -238,7 +279,26 @@ function FindingsPage() {
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-border bg-muted/20">
-                  {["Ref","title", "Source", "Severity", "Status"].map((h) => (
+                  <th
+                    className="text-left px-5 py-3 whitespace-nowrap"
+                    aria-sort={refSorted ? (refDirection === "asc" ? "ascending" : "descending") : "none"}
+                  >
+                    <button
+                      onClick={handleRefSort}
+                      title="Sort by reference"
+                      className={`flex items-center gap-0.5 text-xs font-medium transition-colors ${
+                        refSorted ? "text-[#7B3FBE]" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Ref
+                      {refDirection === "asc" ? (
+                        <ChevronUp className="size-3" />
+                      ) : (
+                        <ChevronDown className={`size-3 ${refSorted ? "" : "opacity-40"}`} />
+                      )}
+                    </button>
+                  </th>
+                  {["Title", "Source", "Severity", "Status"].map((h) => (
                     <th key={h} className="text-left text-xs font-medium text-muted-foreground px-5 py-3 whitespace-nowrap">
                       {h}
                     </th>
@@ -251,7 +311,7 @@ function FindingsPage() {
                   <SkeletonRows cols={COLS} />
                 ) : items.length === 0 ? (
                   <tr>
-                    <td colSpan={COLS} className="py-16 text-center">
+                    <td colSpan={COLS + 1} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
                           <ClipboardList className="size-4 text-muted-foreground/40" />
@@ -265,7 +325,7 @@ function FindingsPage() {
                           </button>
                         ) : (
                           <button
-                            onClick={() => navigate("/findings/create")}
+                            onClick={() => navigate("/findings/identify")}
                             className="inline-flex items-center gap-1.5 text-xs font-medium text-[#7B3FBE] hover:underline mt-1"
                           >
                             <Plus className="size-3.5" /> Add finding
@@ -275,7 +335,7 @@ function FindingsPage() {
                     </td>
                   </tr>
                 ) : (
-                  items.map((f) => (
+                  sortedItems.map((f) => (
                     <tr
                       key={f.id}
                       onClick={() => navigate(`/findings/${f.id}`)}
@@ -288,13 +348,10 @@ function FindingsPage() {
                       </td>
 
                       <td className="px-5 py-3.5 max-w-[100px]">
-  <span
-    className="block truncate text-sm text-foreground"
-    title={f.finding_title || ""}
-  >
-    {f.finding_title || ""}
-  </span>
-</td>
+                        <span className="block truncate text-sm text-foreground" title={f.finding_title || ""}>
+                          {f.finding_title || ""}
+                        </span>
+                      </td>
 
                       <td className="px-5 py-3.5">
                         <span className="text-sm text-foreground">
@@ -308,7 +365,7 @@ function FindingsPage() {
                       <td className="px-5 py-3.5 w-px">
                         <div className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex justify-end">
                           <button
-                            
+                            onClick={(e) => { e.stopPropagation(); navigate(`/findings/${f.id}`) }}
                             className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors"
                           >
                             <ArrowUpRight className="size-3" /> View

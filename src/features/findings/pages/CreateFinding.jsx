@@ -76,6 +76,7 @@ function CreateFinding() {
   const { depts, loading: deptsLoading, error: deptsError } = useDepts()
 
   const [form, setForm] = useState({
+    finding_title : "",
     description: "",
     finding_source: "",
     department: "",
@@ -90,6 +91,7 @@ function CreateFinding() {
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
   const errors = {
+    finding_title : !form.finding_title.trim() ? "add finding title" : "",
     description: !form.description.trim() ? "Describe what was found." : "",
     finding_source: !form.finding_source ? "Select where this finding came from." : "",
     department: !form.department ? "Select the department concerned." : "",
@@ -106,6 +108,7 @@ function CreateFinding() {
 
     try {
       await create({
+        finding_title:form.finding_title.trim(),
         description: form.description.trim(),
         finding_source: form.finding_source,
         department: form.department,
@@ -139,7 +142,21 @@ function CreateFinding() {
         {/* What was found */}
         <section className="rounded-xl border border-border bg-card p-6 space-y-5">
           <h2 className="text-sm font-semibold text-foreground">What was found</h2>
-
+        <Field
+            label="title"
+            required
+            error={show("finding_title")}
+            hint="Be specific: what happened, where, and what requirement or objective it relates to."
+          >
+            <textarea
+              value={form.finding_title}
+              onChange={set("finding_title")}
+              rows={2}
+              disabled={saving}
+              placeholder="add finding title"
+              className={`${FIELD_CLS} resize-y leading-relaxed ${show("finding_title") ? "border-red-400" : ""}`}
+            />
+          </Field>
           <Field
             label="Description"
             required

@@ -18,3 +18,7 @@ export const getFindingById = (findingId) =>
 
 export const startRootCauseAnalysis = (findingId, payload) =>
   api.patch(`/finding/${findingId}/root_cause_analyses`, payload)
+
+
+export const updateFinding = (findingId, payload) =>
+  api.patch(`/finding/${findingId}`, payload)

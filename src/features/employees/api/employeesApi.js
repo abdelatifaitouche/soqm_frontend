@@ -20,7 +20,7 @@ export const getEmployee = (id) =>
 // ===================== CREATE =====================
 
 export const createEmployee = (data) =>
-  api.post("/org/employee/", data, {
+  api.post("/org/employee", data, {
     meta: {
       successMessage: "employee created successfully",
     },

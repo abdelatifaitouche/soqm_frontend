@@ -82,3 +82,16 @@ export async function removeResponseFromRisk(riskId, responseId) {
   const { data } = await api.delete(RISK_RESPONSES_PATH(riskId), { data: { response_id: responseId } })
   return data
 }
+
+
+
+export const addObjectiveToRisk = (riskId, objectiveId) =>
+  api.post(`/soqm/risks/${riskId}/objectives`, { objective_id: objectiveId })
+
+export const removeObjectiveFromRisk = (riskId, objectiveId) =>
+  api.delete(`/soqm/risks/${riskId}/objectives`, { data: { objective_id: objectiveId } })
+
+export const fetchComponentObjectives = async (componentId, { page = 1, size = 10 } = {}) => {
+  const res = await api.get("/soqm/objectives", { params: { component_id: componentId, page, size } })
+  return res?.data ?? res
+}

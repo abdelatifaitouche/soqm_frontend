@@ -7,19 +7,16 @@ import {
   ChevronLeft, ChevronRight, CheckSquare, Pencil,
 } from "lucide-react"
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+  SheetDescription, SheetFooter,
 } from "@/components/ui/sheet"
-import { useFinding } from "@/features/findings/hooks/useFinding"
-import { useUpdateFinding } from "@/features/findings/hooks/useUpdateFinding"
-import { useDepts } from "@/features/departments/hooks/useDept"
-import { useActions } from "@/features/findings/hooks/useActions"
-import { createAction } from "@/features/findings/api/actionsApi"
-import RootCauseSection from "@/features/findings/pages/RootCauseAnalysis"
+import { useFinding }           from "@/features/findings/hooks/useFinding"
+import { useUpdateFinding }     from "@/features/findings/hooks/useUpdateFinding"
+import { useDepts }             from "@/features/departments/hooks/useDept"
+import { useActions }           from "@/features/findings/hooks/useActions"
+import { useEmployeeOptions }   from "@/features/employees/hooks/useEmployeeOptions"
+import { createAction }         from "@/features/findings/api/actionsApi"
+import RootCauseSection         from "@/features/findings/pages/RootCauseAnalysis"
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -34,7 +31,7 @@ const STATUS_CONFIG = {
 }
 
 const SEVERITY_CONFIG = {
-  deficiency:             { label: "Deficiency",             icon: AlertCircle,  cls: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/30 dark:text-yellow-400 dark:border-yellow-900" },
+  deficiency:             { label: "Deficiency",             icon: AlertCircle,   cls: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/30 dark:text-yellow-400 dark:border-yellow-900" },
   significant_deficiency: { label: "Significant deficiency", icon: AlertTriangle, cls: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-900" },
   material_deficiency:    { label: "Material deficiency",    icon: ShieldAlert,   cls: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900" },
 }
@@ -55,9 +52,10 @@ const SOURCE_LABEL = {
   other_quality_events: "Other quality events",
 }
 
-const PILL = "inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border whitespace-nowrap"
-const INPUT = "w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] transition-colors disabled:opacity-60"
+const PILL       = "inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full border whitespace-nowrap"
+const INPUT      = "w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] transition-colors disabled:opacity-60"
 const SELECT_CLS = "h-9 rounded-lg border border-input bg-card px-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-[#7B3FBE] transition-colors cursor-pointer"
+const LABEL_CLS  = "block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5"
 
 function formatLabel(str) {
   if (!str) return "—"
@@ -71,7 +69,6 @@ function fmtDate(val) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 }
 
-// FastAPI can return `detail` as a string or as a list of validation errors.
 function extractError(err, fallback) {
   const detail = err?.response?.data?.detail
   if (typeof detail === "string") return detail
@@ -142,48 +139,36 @@ function StatusStepper({ status }) {
 }
 
 // ── Edit finding drawer ───────────────────────────────────────────────────────
-// Mounted only while open, so it always starts from the latest saved values.
-// Only fields that changed are sent.
 
 function EditFindingForm({ finding, onSave, onClose }) {
-  const [title, setTitle] = useState(finding.finding_title ?? "")
-  const [source, setSource] = useState(finding.finding_source ?? "")
+  const [title, setTitle]           = useState(finding.finding_title ?? "")
+  const [source, setSource]         = useState(finding.finding_source ?? "")
   const [description, setDescription] = useState(finding.description ?? "")
-  const [saving, setSaving] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState("")
+  const [saving, setSaving]         = useState(false)
+  const [submitted, setSubmitted]   = useState(false)
+  const [error, setError]           = useState("")
 
-  const cleanTitle = title.trim()
+  const cleanTitle       = title.trim()
   const cleanDescription = description.trim()
-
   const errors = {
-    source: !source ? "Select a source." : "",
+    source:      !source ? "Select a source." : "",
     description: !cleanDescription ? "Describe what was found." : "",
   }
   const hasErrors = Object.values(errors).some(Boolean)
-
   const changes = {}
-  if (cleanTitle !== (finding.finding_title ?? "")) changes.finding_title = cleanTitle
-  if (source !== (finding.finding_source ?? "")) changes.finding_source = source
-  if (cleanDescription !== (finding.description ?? "")) changes.description = cleanDescription
+  if (cleanTitle !== (finding.finding_title ?? ""))       changes.finding_title  = cleanTitle
+  if (source !== (finding.finding_source ?? ""))          changes.finding_source = source
+  if (cleanDescription !== (finding.description ?? ""))   changes.description    = cleanDescription
   const hasChanges = Object.keys(changes).length > 0
 
   const submit = async (e) => {
-    e.preventDefault()
-    setSubmitted(true)
-    setError("")
+    e.preventDefault(); setSubmitted(true); setError("")
     if (hasErrors) return
     if (!hasChanges) { onClose(); return }
-
     setSaving(true)
-    try {
-      await onSave(changes)
-      onClose()
-    } catch (err) {
-      setError(extractError(err, "Couldn’t save the changes. Try again."))
-    } finally {
-      setSaving(false)
-    }
+    try { await onSave(changes); onClose() }
+    catch (err) { setError(extractError(err, "Couldn't save the changes. Try again.")) }
+    finally { setSaving(false) }
   }
 
   return (
@@ -191,28 +176,15 @@ function EditFindingForm({ finding, onSave, onClose }) {
       <div className="flex-1 overflow-y-auto px-4 py-2 space-y-5">
         <div>
           <label htmlFor="finding-title" className="block text-sm font-medium text-foreground mb-1.5">Title</label>
-          <input
-            id="finding-title"
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={saving}
-            placeholder="A short name for this finding"
-            className={INPUT}
-          />
+          <input id="finding-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+            disabled={saving} placeholder="A short name for this finding" className={INPUT} />
         </div>
-
         <div>
           <label htmlFor="finding-source" className="block text-sm font-medium text-foreground mb-1.5">
             Source <span className="text-muted-foreground font-normal">*</span>
           </label>
-          <select
-            id="finding-source"
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            disabled={saving}
-            className={`${INPUT} cursor-pointer ${submitted && errors.source ? "border-red-400" : ""}`}
-          >
+          <select id="finding-source" value={source} onChange={(e) => setSource(e.target.value)}
+            disabled={saving} className={`${INPUT} cursor-pointer ${submitted && errors.source ? "border-red-400" : ""}`}>
             {!source && <option value="">Select a source</option>}
             {Object.entries(SOURCE_LABEL).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
@@ -220,48 +192,29 @@ function EditFindingForm({ finding, onSave, onClose }) {
           </select>
           {submitted && errors.source && <p className="text-xs text-red-600 mt-1.5">{errors.source}</p>}
         </div>
-
         <div>
           <label htmlFor="finding-description" className="block text-sm font-medium text-foreground mb-1.5">
             Description <span className="text-muted-foreground font-normal">*</span>
           </label>
-          <textarea
-            id="finding-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={8}
-            disabled={saving}
-            className={`${INPUT} resize-y leading-relaxed ${submitted && errors.description ? "border-red-400" : ""}`}
-          />
+          <textarea id="finding-description" value={description} onChange={(e) => setDescription(e.target.value)}
+            rows={8} disabled={saving}
+            className={`${INPUT} resize-y leading-relaxed ${submitted && errors.description ? "border-red-400" : ""}`} />
           {submitted && errors.description && <p className="text-xs text-red-600 mt-1.5">{errors.description}</p>}
         </div>
-
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Severity, department and status aren’t changed here.
-        </p>
-
+        <p className="text-xs text-muted-foreground leading-relaxed">Severity, department and status aren't changed here.</p>
         {error && (
           <div role="alert" className="flex items-start gap-2 text-sm text-red-600">
-            <AlertCircle className="size-4 shrink-0 mt-0.5" />
-            {error}
+            <AlertCircle className="size-4 shrink-0 mt-0.5" /> {error}
           </div>
         )}
       </div>
-
       <SheetFooter>
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={saving}
-          className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
-        >
+        <button type="button" onClick={onClose} disabled={saving}
+          className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60">
           Cancel
         </button>
-        <button
-          type="submit"
-          disabled={saving || !hasChanges}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#3B1F6A] rounded-lg hover:bg-[#52298F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <button type="submit" disabled={saving || !hasChanges}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#3B1F6A] rounded-lg hover:bg-[#52298F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           {saving && <Loader2 className="size-4 animate-spin" />}
           Save changes
         </button>
@@ -287,19 +240,25 @@ function EditFindingDrawer({ open, onOpenChange, finding, onSave }) {
 // ── Create action modal ───────────────────────────────────────────────────────
 
 function CreateActionModal({ findingId, onClose, onCreated }) {
-  const [title, setTitle]   = useState("")
-  const [date, setDate]     = useState("")
-  const [saving, setSaving] = useState(false)
-  const [error, setError]   = useState("")
+  const [title, setTitle]     = useState("")
+  const [date, setDate]       = useState("")
+  const [ownerId, setOwnerId] = useState("")
+  const [saving, setSaving]   = useState(false)
+  const [error, setError]     = useState("")
+
+  const { employee_options, employee_loading } = useEmployeeOptions()
+
+  const selectedEmployee = employee_options?.find((e) => e.id === ownerId) ?? null
 
   const handleSubmit = async () => {
     if (!title.trim()) { setError("Title is required."); return }
     setSaving(true); setError("")
     try {
       const res = await createAction(findingId, {
-        title:                    title.trim(),
-        finding_id:               findingId,
+        title:                     title.trim(),
+        finding_id:                findingId,
         estimated_completion_date: date || null,
+        owner_id:                  ownerId || null,
       })
       onCreated(res.data ?? res)
       onClose()
@@ -314,6 +273,8 @@ function CreateActionModal({ findingId, onClose, onCreated }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
+
+        {/* Header */}
         <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-border">
           <div>
             <h2 className="text-base font-semibold text-foreground">New action plan</h2>
@@ -325,11 +286,12 @@ function CreateActionModal({ findingId, onClose, onCreated }) {
           </button>
         </div>
 
+        {/* Body */}
         <div className="px-6 py-5 space-y-4">
+
+          {/* Title */}
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">
-              Title <span className="text-destructive">*</span>
-            </label>
+            <label className={LABEL_CLS}>Title <span className="text-destructive">*</span></label>
             <input
               type="text"
               value={title}
@@ -337,13 +299,50 @@ function CreateActionModal({ findingId, onClose, onCreated }) {
               placeholder="e.g. Update training programme for new standards"
               disabled={saving}
               className={INPUT}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              onKeyDown={(e) => e.key === "Enter" && !ownerId && handleSubmit()}
               autoFocus
             />
           </div>
 
+          {/* Owner */}
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">
+            <label className={LABEL_CLS}>Owner</label>
+            {employee_loading ? (
+              <div className="flex items-center gap-2 h-9 text-xs text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" /> Loading employees…
+              </div>
+            ) : (
+              <select
+                value={ownerId}
+                onChange={(e) => setOwnerId(e.target.value)}
+                disabled={saving}
+                className={`${INPUT} cursor-pointer`}
+              >
+                <option value="">No owner assigned</option>
+                {employee_options?.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.first_name} {e.last_name}{e.job_title ? ` — ${e.job_title}` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+            {/* Avatar confirmation when an employee is selected */}
+            {selectedEmployee && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="flex size-5 items-center justify-center rounded-full bg-[#EDE9F8] dark:bg-accent text-[#3B1F6A] dark:text-foreground text-[9px] font-bold shrink-0">
+                  {selectedEmployee.first_name?.[0]}{selectedEmployee.last_name?.[0]}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {selectedEmployee.first_name} {selectedEmployee.last_name}
+                  {selectedEmployee.job_title && <> · {selectedEmployee.job_title}</>}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Estimated completion */}
+          <div>
+            <label className={LABEL_CLS}>
               <span className="flex items-center gap-1">
                 <Calendar className="size-3" /> Estimated completion
               </span>
@@ -364,6 +363,7 @@ function CreateActionModal({ findingId, onClose, onCreated }) {
           )}
         </div>
 
+        {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
           <button onClick={onClose} disabled={saving}
             className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60">
@@ -383,7 +383,6 @@ function CreateActionModal({ findingId, onClose, onCreated }) {
 // ── Pagination ────────────────────────────────────────────────────────────────
 
 function Pagination({ page, totalPages, onChange }) {
-  // Hooks run before the early return so the hook order never changes between renders.
   const pages = useMemo(() => {
     const set = new Set([1, totalPages, page - 1, page, page + 1])
     return [...set].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b)
@@ -395,7 +394,7 @@ function Pagination({ page, totalPages, onChange }) {
     <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
       <p className="text-xs text-muted-foreground">Page {page} of {totalPages}</p>
       <div className="flex items-center gap-1">
-        <button onClick={() => onChange(page - 1)} disabled={page <= 1} aria-label="Previous page"
+        <button onClick={() => onChange(page - 1)} disabled={page <= 1}
           className="flex size-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 transition-colors">
           <ChevronLeft className="size-3.5" />
         </button>
@@ -404,7 +403,7 @@ function Pagination({ page, totalPages, onChange }) {
             {i > 0 && pages[i - 1] !== p - 1 && (
               <span className="text-xs text-muted-foreground px-0.5">…</span>
             )}
-            <button onClick={() => onChange(p)} aria-current={p === page ? "page" : undefined}
+            <button onClick={() => onChange(p)}
               className={`flex size-7 items-center justify-center rounded-md text-xs font-medium transition-colors ${
                 p === page ? "bg-[#3B1F6A] text-white" : "border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
               }`}>
@@ -412,7 +411,7 @@ function Pagination({ page, totalPages, onChange }) {
             </button>
           </Fragment>
         ))}
-        <button onClick={() => onChange(page + 1)} disabled={page >= totalPages} aria-label="Next page"
+        <button onClick={() => onChange(page + 1)} disabled={page >= totalPages}
           className="flex size-7 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 transition-colors">
           <ChevronRight className="size-3.5" />
         </button>
@@ -424,17 +423,13 @@ function Pagination({ page, totalPages, onChange }) {
 // ── Action plans section ──────────────────────────────────────────────────────
 
 function ActionPlansSection({ findingId }) {
-  const [page, setPage]         = useState(1)
-  const [statusFilter, setStatus] = useState("")
-  const [createOpen, setCreateOpen] = useState(false)
-  const navigate = useNavigate()
+  const navigate                              = useNavigate()
+  const [page, setPage]                       = useState(1)
+  const [statusFilter, setStatus]             = useState("")
+  const [createOpen, setCreateOpen]           = useState(false)
   const { items, total, totalPages, loading, error, setItems } = useActions(findingId, page, statusFilter)
 
-  const handleCreated = (newAction) => {
-    setItems((prev) => [newAction, ...prev])
-  }
-
-  const actionStatuses = Object.keys(ACTION_STATUS_CONFIG)
+  const handleCreated = (newAction) => setItems((prev) => [newAction, ...prev])
 
   return (
     <>
@@ -443,21 +438,15 @@ function ActionPlansSection({ findingId }) {
         aside={
           <div className="flex items-center gap-2">
             {total > 0 && (
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatus(e.target.value); setPage(1) }}
-                className={SELECT_CLS}
-              >
+              <select value={statusFilter} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className={SELECT_CLS}>
                 <option value="">All statuses</option>
-                {actionStatuses.map((s) => (
+                {Object.keys(ACTION_STATUS_CONFIG).map((s) => (
                   <option key={s} value={s}>{ACTION_STATUS_CONFIG[s].label}</option>
                 ))}
               </select>
             )}
-            <button
-              onClick={() => setCreateOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors"
-            >
+            <button onClick={() => setCreateOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors">
               <Plus className="size-3" /> Add action
             </button>
           </div>
@@ -465,13 +454,11 @@ function ActionPlansSection({ findingId }) {
       >
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            <span className="text-sm">Loading actions…</span>
+            <Loader2 className="size-4 animate-spin" /><span className="text-sm">Loading actions…</span>
           </div>
         ) : error ? (
           <div className="flex items-center justify-center gap-2 py-10 text-destructive">
-            <AlertCircle className="size-4" />
-            <span className="text-sm">Failed to load actions.</span>
+            <AlertCircle className="size-4" /><span className="text-sm">Failed to load actions.</span>
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center text-center gap-3 py-10">
@@ -481,7 +468,7 @@ function ActionPlansSection({ findingId }) {
             <div>
               <p className="text-sm font-medium text-foreground">No action plans yet</p>
               <p className="text-xs text-muted-foreground mt-1 max-w-xs leading-relaxed">
-                {statusFilter ? "No actions match this filter." : "Remediation actions with owners and due dates will be tracked here."}
+                {statusFilter ? "No actions match this filter." : "Remediation actions will be tracked here."}
               </p>
             </div>
             {!statusFilter && (
@@ -495,44 +482,90 @@ function ActionPlansSection({ findingId }) {
           <>
             <ul className="space-y-2">
               {items.map((action) => {
-                const stCfg = ACTION_STATUS_CONFIG[action.status] ?? ACTION_STATUS_CONFIG.DRAFT
+                const stCfg  = ACTION_STATUS_CONFIG[action.status] ?? ACTION_STATUS_CONFIG.DRAFT
                 const StIcon = stCfg.icon
                 return (
                   <li
-                    key={action.id}
-                    onClick={() => navigate(`/actions/${action.id}`)}
-                    className="flex items-center gap-4 px-4 py-3.5 rounded-xl border border-border bg-card hover:bg-muted/30 transition-colors cursor-pointer min-w-0"
-                  >
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <p className="text-sm font-medium text-foreground truncate max-w-full" title={action.title}>
-                        {action.title}
-                      </p>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        {action.estimated_completion_date && (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="size-3 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">
-                              Due {fmtDate(action.estimated_completion_date)}
-                            </span>
-                          </div>
-                        )}
-                        {action.completion_date ? (
-                          <div className="flex items-center gap-1">
-                            <CheckSquare className="size-3 text-emerald-500" />
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                              Completed {fmtDate(action.completion_date)}
-                            </span>
-                          </div>
-                        ) : action.status !== "DRAFT" && action.status !== "CANCELLED" && (
-                          <span className="text-xs text-muted-foreground/50 italic">Not yet completed</span>
-                        )}
-                      </div>
-                    </div>
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${stCfg.cls}`}>
-                      <StIcon className="size-2.5" />
-                      {stCfg.label}
-                    </span>
-                  </li>
+  key={action.id}
+  onClick={() => navigate(`/actions/${action.id}`)}
+  className="group flex items-center gap-4 rounded-xl border border-border
+    bg-card px-4 py-4 transition-all duration-200
+    hover:border-primary/30 hover:bg-muted/30 hover:shadow-sm
+    cursor-pointer min-w-0"
+>
+  {/* Main content */}
+  <div className="flex-1 min-w-0 space-y-2">
+    <p
+      className="text-sm font-semibold text-foreground truncate
+        group-hover:text-primary transition-colors"
+      title={action.title}
+    >
+      {action.title}
+    </p>
+
+    {/* Dates and completion info */}
+    <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap">
+      {action.estimated_completion_date && (
+        <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Calendar className="size-3.5 shrink-0" />
+          <span>
+            Due {fmtDate(action.estimated_completion_date)}
+          </span>
+        </div>
+      )}
+
+      {action.completion_date ? (
+        <div className="inline-flex items-center gap-1.5 text-xs
+          text-emerald-600 dark:text-emerald-400 font-medium">
+          <CheckSquare className="size-3.5 shrink-0" />
+          <span>
+            Completed {fmtDate(action.completion_date)}
+          </span>
+        </div>
+      ) : action.status !== "DRAFT" &&
+          action.status !== "CANCELLED" && (
+        <span className="text-xs text-muted-foreground">
+          Not yet completed
+        </span>
+      )}
+    </div>
+  </div>
+
+  {/* Owner */}
+  {action.owner?.id && (
+    <div
+      className="hidden sm:flex items-center gap-2 shrink-0 max-w-44"
+      title={`${action.owner.first_name} ${action.owner.last_name}`}
+    >
+      <div className="flex size-7 items-center justify-center rounded-full
+        bg-muted text-xs font-semibold text-muted-foreground shrink-0">
+        {action.owner.first_name?.[0]}
+        {action.owner.last_name?.[0]}
+      </div>
+
+      <span className="text-xs font-medium text-muted-foreground truncate">
+        {action.owner.first_name} {action.owner.last_name}
+      </span>
+    </div>
+  )}
+
+  {/* Status */}
+  <span
+    className={`inline-flex items-center justify-center gap-1.5
+      text-xs font-semibold px-2.5 py-1 rounded-full border
+      shrink-0 ${stCfg.cls}`}
+  >
+    <StIcon className="size-3" />
+    {stCfg.label}
+  </span>
+
+  {/* Navigation indicator */}
+  <ChevronRight
+    className="size-4 shrink-0 text-muted-foreground/40
+      group-hover:text-primary group-hover:translate-x-0.5
+      transition-all"
+  />
+</li>
                 )
               })}
             </ul>
@@ -542,11 +575,7 @@ function ActionPlansSection({ findingId }) {
       </Section>
 
       {createOpen && (
-        <CreateActionModal
-          findingId={findingId}
-          onClose={() => setCreateOpen(false)}
-          onCreated={handleCreated}
-        />
+        <CreateActionModal findingId={findingId} onClose={() => setCreateOpen(false)} onCreated={handleCreated} />
       )}
     </>
   )
@@ -579,8 +608,6 @@ function FindingDetails() {
   const { depts, loading: deptsLoading }     = useDepts()
   const { update }                           = useUpdateFinding(id)
 
-  // The update endpoint returns 204 (no body), so after a save we apply the
-  // changes we sent on top of the fetched finding. A fresh fetch replaces them.
   const [overrides, setOverrides] = useState({})
   const [editOpen, setEditOpen]   = useState(false)
 
@@ -605,19 +632,18 @@ function FindingDetails() {
     </div>
   )
 
-  const finding = { ...fetched, ...overrides }
+  const finding  = { ...fetched, ...overrides }
 
   const handleSave = async (changes) => {
-    await update(changes) // throws on failure; the drawer shows the error and stays open
+    await update(changes)
     setOverrides((prev) => ({ ...prev, ...changes, updated_at: new Date().toISOString() }))
   }
 
-  const deptList   = Array.isArray(depts) ? depts : depts?.items ?? []
-  const deptName   = deptList.find((d) => d.id === finding.department)?.name
-
-  const status     = STATUS_CONFIG[finding.status] ?? { label: formatLabel(finding.status), icon: CircleDashed, cls: STATUS_CONFIG.open.cls }
-  const StatusIcon = status.icon
-  const severity   = finding.deficiency_severity
+  const deptList     = Array.isArray(depts) ? depts : depts?.items ?? []
+  const deptName     = deptList.find((d) => d.id === finding.department)?.name
+  const status       = STATUS_CONFIG[finding.status] ?? { label: formatLabel(finding.status), icon: CircleDashed, cls: STATUS_CONFIG.open.cls }
+  const StatusIcon   = status.icon
+  const severity     = finding.deficiency_severity
     ? SEVERITY_CONFIG[finding.deficiency_severity] ?? { label: formatLabel(finding.deficiency_severity), icon: AlertCircle, cls: SEVERITY_CONFIG.deficiency.cls }
     : null
   const SeverityIcon = severity?.icon
@@ -631,13 +657,9 @@ function FindingDetails() {
           <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" />
           Findings
         </button>
-
-        <button
-          onClick={() => setEditOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-        >
-          <Pencil className="size-3.5" />
-          Edit
+        <button onClick={() => setEditOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
+          <Pencil className="size-3.5" /> Edit
         </button>
       </div>
 
@@ -653,7 +675,6 @@ function FindingDetails() {
               {finding.finding_title}
             </p>
           )}
-
           <div className="flex items-center gap-2 flex-wrap mt-5">
             <span className={`${PILL} ${status.cls}`}>
               <StatusIcon className="size-3" /> {status.label}
@@ -681,9 +702,7 @@ function FindingDetails() {
               {finding.description || <span className="italic text-muted-foreground">No description provided</span>}
             </p>
           </Section>
-
           <RootCauseSection rca={finding.root_cause_analysis} findingId={finding.id} />
-
           <ActionPlansSection findingId={finding.id} />
         </div>
 
@@ -694,11 +713,7 @@ function FindingDetails() {
                 {SOURCE_LABEL[finding.finding_source] ?? formatLabel(finding.finding_source)}
               </DetailRow>
               <DetailRow label="Department">
-                {deptName ?? (
-                  <span className="text-muted-foreground">
-                    {deptsLoading ? "Loading…" : "Unknown department"}
-                  </span>
-                )}
+                {deptName ?? <span className="text-muted-foreground">{deptsLoading ? "Loading…" : "Unknown department"}</span>}
               </DetailRow>
               <DetailRow label="Identified">{fmtDate(finding.created_at)}</DetailRow>
               <DetailRow label="Last updated">{fmtDate(finding.updated_at)}</DetailRow>

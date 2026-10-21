@@ -58,6 +58,8 @@ import {
   Unlink,
 } from "lucide-react"
 
+import ObjectivesSection from "@/features/risks/components/ObjectiveSection"
+
 // ============================================================
 // CONSTANTS
 // ============================================================
@@ -1190,35 +1192,7 @@ export default function RiskDetails() {
               )}
             </Section>
 
-            <Section title="Objectives" count={risk.objectives?.length || null}>
-              {risk.objectives && risk.objectives.length > 0 ? (
-                <ul className="-my-1">
-                  {risk.objectives.map((obj) => (
-                    <li key={obj.id} className="border-b border-border/60 last:border-0">
-                      <button
-                        onClick={() => navigate(`/objectives/${obj.id}`)}
-                        className="group w-full flex items-center gap-3 py-2.5 text-left"
-                      >
-                        <div className="flex items-center justify-center size-8 rounded-lg bg-[#EDE9F8] dark:bg-accent shrink-0">
-                          <Target className="size-4 text-[#7B3FBE]" />
-                        </div>
-                        <span className="flex-1 min-w-0 text-sm text-foreground/90 truncate">
-                          Objective {obj.objective_reference}
-                        </span>
-                        {obj.status && (
-                          <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                            {formatLabel(obj.status)}
-                          </span>
-                        )}
-                        <ArrowRight className="size-3.5 text-muted-foreground/40 group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">Not linked to any objective</p>
-              )}
-            </Section>
+            <ObjectivesSection risk={risk} onChange={setRisk} canManage={isAdmin} />
           </aside>
         </div>
 

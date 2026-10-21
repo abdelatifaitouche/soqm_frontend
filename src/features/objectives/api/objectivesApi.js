@@ -45,3 +45,16 @@ export const deleteObjective = (id) =>
       successMessage: "Objective deleted successfully",
     },
   });
+
+
+
+export const linkRiskToObjective = (riskId, objectiveId) =>
+  api.post(`/soqm/risks/${riskId}/objectives`, { objective_id: objectiveId })
+
+export const unlinkRiskFromObjective = (riskId, objectiveId) =>
+  api.delete(`/soqm/risks/${riskId}/objectives`, { data: { objective_id: objectiveId } })
+
+export const getComponentRisks = async (componentId, { page = 1, size = 10 } = {}) => {
+  const res = await api.get("/soqm/risks", { params: { component_id: componentId, page, size } })
+  return res?.data ?? res // works with or without an unwrapping interceptor
+}

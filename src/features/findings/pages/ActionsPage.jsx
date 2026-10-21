@@ -4,6 +4,7 @@ import {
   ArrowLeft, AlertCircle, Loader2, CalendarDays, CheckCircle2,
   Clock3, Wrench, CircleDashed, ExternalLink, ClipboardList,
   RefreshCw, Pencil, Play, X, Trash2,
+  UserRound,
 } from "lucide-react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -14,7 +15,7 @@ import {
   useStartAction, useCompleteAction, useUpdateAction,
 } from "@/features/findings/hooks/useActionMutation";
 import { useDeleteAction } from "@/features/findings/hooks/useActions";
-
+import { useEmployeeOptions } from "@/features/employees/hooks/useEmployeeOptions";
 // ── Status config ─────────────────────────────────────────────────────────────
 
 const ACTION_STATUS_CONFIG = {
@@ -225,17 +226,33 @@ const FIELD_CLS = "h-10 w-full rounded-lg border bg-background px-3 text-sm text
 
 function EditForm({ action, onSave, onClose }) {
   const savedDate = action.estimated_completion_date?.slice(0, 10) ?? "";
-  const [title, setTitle]       = useState(action.title ?? "");
-  const [date, setDate]         = useState(savedDate);
-  const [saving, setSaving]     = useState(false);
+  const currentOwnerId = action.owner_id ?? action.owner?.id ?? "";
+
+  const [title, setTitle]         = useState(action.title ?? "");
+  const [date, setDate]           = useState(savedDate);
+  const [ownerId, setOwnerId]     = useState(currentOwnerId);
+  const [saving, setSaving]       = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError]       = useState("");
+  const [error, setError]         = useState("");
+
+  const {
+    employee_options,
+    employee_loading,
+    employee_error,
+  } = useEmployeeOptions();
 
   const cleanTitle = title.trim();
   const titleError = !cleanTitle ? "The action title is required." : "";
+
   const changes = {};
   if (cleanTitle !== (action.title ?? "")) changes.title = cleanTitle;
-  if (date !== savedDate) changes.estimated_completion_date = date ? `${date}T00:00:00` : null;
+  if (date !== savedDate) {
+    changes.estimated_completion_date = date ? `${date}T00:00:00` : null;
+  }
+  // only send the employee id as owner_id
+  if (String(ownerId) !== String(currentOwnerId)) {
+    changes.owner_id = ownerId === "" ? null : ownerId;
+  }
   const hasChanges = Object.keys(changes).length > 0;
 
   async function submit(e) {
@@ -243,7 +260,10 @@ function EditForm({ action, onSave, onClose }) {
     setSubmitted(true);
     setError("");
     if (titleError) return;
-    if (!hasChanges) { onClose(); return; }
+    if (!hasChanges) {
+      onClose();
+      return;
+    }
     setSaving(true);
     try {
       await onSave(changes);
@@ -258,32 +278,93 @@ function EditForm({ action, onSave, onClose }) {
   return (
     <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 space-y-5 overflow-y-auto px-4 py-2">
+        {/* Title */}
         <div className="space-y-1.5">
-          <label htmlFor="action-title" className="text-sm font-medium text-foreground">Action title</label>
-          <input id="action-title" value={title} onChange={(e) => setTitle(e.target.value)}
-            maxLength={255} disabled={saving}
-            className={`${FIELD_CLS} ${submitted && titleError ? "border-red-400" : "border-border"}`} />
-          {submitted && titleError && <p className="text-xs text-red-600">{titleError}</p>}
+          <label htmlFor="action-title" className="text-sm font-medium text-foreground">
+            Action title
+          </label>
+          <input
+            id="action-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={255}
+            disabled={saving}
+            className={`${FIELD_CLS} ${submitted && titleError ? "border-red-400" : "border-border"}`}
+          />
+          {submitted && titleError && (
+            <p className="text-xs text-red-600">{titleError}</p>
+          )}
         </div>
+
+        {/* Owner */}
         <div className="space-y-1.5">
-          <label htmlFor="estimated-date" className="text-sm font-medium text-foreground">Estimated completion date</label>
-          <input id="estimated-date" type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            disabled={saving} className={`${FIELD_CLS} border-border`} />
+          <label htmlFor="owner_id" className="text-sm font-medium text-foreground">
+            Owner
+          </label>
+          <select
+            id="owner_id"
+            value={ownerId}
+            onChange={(e) => setOwnerId(e.target.value)}
+            disabled={saving || employee_loading}
+            className={`${FIELD_CLS} border-border`}
+          >
+            <option value="">Unassigned</option>
+            {(employee_options ?? []).map((emp) => {
+              const id = emp.id;
+              const label =
+                `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() || "Unnamed";
+              return (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              );
+            })}
+          </select>
+          {employee_loading && (
+            <p className="text-xs text-muted-foreground">Loading employees…</p>
+          )}
+          {employee_error && (
+            <p className="text-xs text-red-600">Could not load employees.</p>
+          )}
+        </div>
+
+        {/* Estimated date */}
+        <div className="space-y-1.5">
+          <label htmlFor="estimated-date" className="text-sm font-medium text-foreground">
+            Estimated completion date
+          </label>
+          <input
+            id="estimated-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            disabled={saving}
+            className={`${FIELD_CLS} border-border`}
+          />
           <p className="text-xs text-muted-foreground">Leave empty to clear the date.</p>
         </div>
+
         {error && (
           <div role="alert" className="flex items-start gap-2 text-sm text-red-600">
             <AlertCircle className="mt-0.5 size-4 shrink-0" /> {error}
           </div>
         )}
       </div>
+
       <SheetFooter>
-        <button type="button" onClick={onClose} disabled={saving}
-          className="px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={saving}
+          className="px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-60"
+        >
           Cancel
         </button>
-        <button type="submit" disabled={saving || !hasChanges}
-          className="flex items-center gap-2 rounded-lg bg-[#3B1F6A] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#4b2883] disabled:cursor-not-allowed disabled:opacity-50">
+        <button
+          type="submit"
+          disabled={saving || !hasChanges}
+          className="flex items-center gap-2 rounded-lg bg-[#3B1F6A] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#4b2883] disabled:cursor-not-allowed disabled:opacity-50"
+        >
           {saving && <Loader2 className="size-4 animate-spin" />}
           Save changes
         </button>
@@ -298,9 +379,17 @@ function EditDrawer({ open, onOpenChange, action, onSave }) {
       <SheetContent className="flex flex-col sm:max-w-md">
         <SheetHeader>
           <SheetTitle>Edit action</SheetTitle>
-          <SheetDescription>Update the title or the estimated completion date.</SheetDescription>
+          <SheetDescription>
+            Update the title, owner, or estimated completion date.
+          </SheetDescription>
         </SheetHeader>
-        {open && <EditForm action={action} onSave={onSave} onClose={() => onOpenChange(false)} />}
+        {open && (
+          <EditForm
+            action={action}
+            onSave={onSave}
+            onClose={() => onOpenChange(false)}
+          />
+        )}
       </SheetContent>
     </Sheet>
   );
@@ -404,7 +493,7 @@ export default function ActionDetails() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 pb-16">
+    <main className="mx-auto max-w-5xl space-y-6 pb-16">
       <button type="button" onClick={() => navigate(-1)}
         className="group inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
         <ArrowLeft className="size-4 transition-transform group-hover:-translate-x-0.5" />
@@ -416,25 +505,49 @@ export default function ActionDetails() {
         <div className="p-5 sm:p-7">
           <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
             <div className="flex min-w-0 items-start gap-4">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#3B1F6A]/10 text-[#3B1F6A] dark:text-[#a78bdb]">
-                {completed ? <CheckCircle2 className="size-6" /> : <ClipboardList className="size-6" />}
-              </div>
-              <div className="min-w-0">
-                <div className="mb-3"><StatusBadge status={actionStatus} /></div>
-                <h1 className="break-words text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
-                  {current.title || "Untitled action"}
-                </h1>
-                <p className="mt-2 break-all font-mono text-xs text-muted-foreground">ID: {current.id}</p>
-              </div>
-            </div>
+  {/* Icon */}
+  <div
+    className="flex size-12 shrink-0 items-center justify-center rounded-xl
+      bg-[#3B1F6A]/10 text-[#3B1F6A]
+      dark:bg-[#a78bdb]/15 dark:text-[#a78bdb]"
+  >
+    {completed ? (
+      <CheckCircle2 className="size-6" />
+    ) : (
+      <ClipboardList className="size-6" />
+    )}
+  </div>
 
-            {current.finding_id && (
-              <button type="button" disabled={busy}
-                onClick={() => navigate(`/findings/${current.finding_id}`)}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50">
-                View finding <ExternalLink className="size-3.5" />
-              </button>
-            )}
+  {/* Header content */}
+  <div className="min-w-0 flex-1">
+    <div className="mb-2">
+      <StatusBadge status={actionStatus} />
+    </div>
+
+    <h1 className="break-words text-xl font-semibold leading-snug
+      tracking-tight text-foreground sm:text-2xl">
+      {current.title || "Untitled action"}
+    </h1>
+
+    {/* Owner */}
+    <div className="mt-2 flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+      <UserRound className="size-4 shrink-0" />
+      <span className="truncate">
+        {current.owner
+          ? `${current.owner.first_name ?? ""} ${current.owner.last_name ?? ""}`.trim() || "Unnamed owner"
+          : "Unassigned"}
+      </span>
+    </div>
+
+    {/* ID */}
+    <p className="mt-3 text-xs text-muted-foreground">
+      <span className="mr-1.5">Action ID</span>
+      <span className="font-mono">{current.id}</span>
+    </p>
+  </div>
+</div>
+
+          
           </div>
 
           {/* Action buttons */}

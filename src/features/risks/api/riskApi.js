@@ -95,3 +95,15 @@ export const fetchComponentObjectives = async (componentId, { page = 1, size = 1
   const res = await api.get("/soqm/objectives", { params: { component_id: componentId, page, size } })
   return res?.data ?? res
 }
+
+
+
+export const fetchRiskReasonCategories = async () => {
+  const res = await api.get("/soqm/risks/reason_categories")
+  return res?.data ?? res // works with or without an unwrapping interceptor
+}
+
+export const closeRisk = (riskId, payload) =>
+  api.post(`/soqm/risks/${riskId}/close`, payload, {
+    meta: { successMessage: "Risk voided" },
+  })

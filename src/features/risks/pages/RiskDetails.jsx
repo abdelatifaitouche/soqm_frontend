@@ -56,10 +56,12 @@ import {
   Blend,
   Layers,
   Unlink,
+  Ban,
 } from "lucide-react"
 
 import ObjectivesSection from "@/features/risks/components/ObjectiveSection"
-
+import ClosureNotice, { VoidedPill } from "../components/ClosureNotice"
+import VoidRiskDrawer from "../components/VoidRiskDrawer"
 // ============================================================
 // CONSTANTS
 // ============================================================
@@ -77,6 +79,7 @@ const STATUS_LABEL = {
   accepted: "Accepted",
   closed: "Closed",
   under_review: "Under review",
+  voided: "Voided",
 }
 
 function getZone(significance, occurrence) {
@@ -1020,6 +1023,7 @@ export default function RiskDetails() {
   const { risk, setRisk, loading, error } = useRisk(id)
 
   const [editOpen, setEditOpen] = useState(false)
+  const [voidOpen, setVoidOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState("")
@@ -1070,7 +1074,7 @@ export default function RiskDetails() {
             Risks
           </button>
 
-          {isAdmin && (
+          {isAdmin && risk.status !== "voided" &&(
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setEditOpen(true)}
@@ -1079,13 +1083,16 @@ export default function RiskDetails() {
                 <Pencil className="size-3.5" />
                 Edit
               </button>
-              <button
-                onClick={() => setDeleteOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-md transition-colors"
-              >
-                <Trash2 className="size-3.5" />
-                Delete
-              </button>
+              {risk.status !== "voided" && (
+            <button
+          onClick={() => setVoidOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+          >
+            <Ban className="size-3.5" />
+            Void
+            </button>
+            )}
+              
             </div>
           )}
         </div>
@@ -1106,7 +1113,11 @@ export default function RiskDetails() {
                   <span className={`size-2 rounded-full ${z.dot}`} />
                   {z.label} risk
                 </span>
-                <span className="text-sm text-foreground/80">{STATUS_LABEL[risk.status]}</span>
+                {risk.status === "voided" ? (
+  <VoidedPill />
+) : (
+  <span className="text-sm text-foreground/80">{STATUS_LABEL[risk.status]}</span>
+)}
               </div>
 
               <dl className="flex gap-8">
@@ -1140,7 +1151,11 @@ export default function RiskDetails() {
           </div>
 
           <div className="border-t border-border bg-muted/20 px-6 sm:px-8 py-5">
-            <WorkflowStepper status={risk.status} />
+            {risk.status === "voided" ? (
+  <ClosureNotice closure={risk.closure_reason} />
+) : (
+  <WorkflowStepper status={risk.status} />
+)}
           </div>
         </header>
 
@@ -1179,7 +1194,7 @@ export default function RiskDetails() {
                 <DateRow
                   label="Next review"
                   value={risk.next_review_date}
-                  extra={<ReviewBadge date={risk.next_review_date} />}
+                  extra={risk.status === "voided" ? null : <ReviewBadge date={risk.next_review_date} />}
                 />
               </dl>
             </Section>
@@ -1202,6 +1217,7 @@ export default function RiskDetails() {
 
       {/* Edit Drawer */}
       <EditDrawer open={editOpen} onOpenChange={setEditOpen} risk={risk} onSaved={setRisk} />
+      <VoidRiskDrawer open={voidOpen} onOpenChange={setVoidOpen} risk={risk} onVoided={setRisk} />
 
       {/* Delete Dialog */}
       <AlertDialog open={deleteOpen} onOpenChange={(v) => { setDeleteOpen(v); if (!v) setDeleteError("") }}>

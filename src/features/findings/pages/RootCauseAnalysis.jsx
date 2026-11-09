@@ -7,6 +7,7 @@ import {
 import { useRootCauseTaxonomy } from "@/features/findings/hooks/useRootCauseTaxomony"
 import { useStartRootCauseAnalysis } from "@/features/findings/hooks/useStartRootCauseAnalysis"
 import { useComponentsOptions } from "@/features/isqm_components/hooks/useComponentsOptions"
+import { Button } from "@/components/ui/button"
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -687,41 +688,40 @@ export function RootCauseSection({ rca, findingId, onSaved }) {
 
     // Prefer what the API returns; otherwise fall back to what we just sent.
     const fromApi = result?.root_cause_analysis ?? (result?.cause_analysis_status ? result : null)
-    setData((prev) =>
-      fromApi
-        ? { ...prev, ...fromApi }
-        : {
-            ...prev,
-            potential_root_cause_id: payload.potential_root_cause_id,
-            analysis: payload.analysis,
-            cause_analysis_status: prev.cause_analysis_status === "completed" ? "completed" : "in_progress",
-          }
-    )
-    onSaved?.(result)
+    const next = fromApi
+      ? { ...data, ...fromApi }
+      : {
+          ...data,
+          potential_root_cause_id: payload.potential_root_cause_id,
+          analysis: payload.analysis,
+          cause_analysis_status: data.cause_analysis_status === "completed" ? "completed" : "in_progress",
+        }
+    setData(next)
+    // Hand the updated analysis back so the parent page can reflect it.
+    onSaved?.(next)
   }
 
   return (
     <>
       <section className="rounded-xl border border-border bg-card">
-        <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
-          <h2 className="text-sm font-semibold text-foreground">Root cause analysis</h2>
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center text-[11px] font-medium px-2.5 py-1 rounded-full border ${cfg.cls}`}>
-              {cfg.label}
-            </span>
-            {started && (
-              <button
-                onClick={() => setOpen(true)}
-                disabled={blocked}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors disabled:opacity-50"
-              >
-                <Pencil className="size-3" /> Edit
-              </button>
-            )}
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 sm:px-6">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-semibold text-foreground">Root cause analysis</h2>
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${cfg.cls}`}>
+                {cfg.label}
+              </span>
+            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">Why this finding occurred.</p>
           </div>
+          {started && (
+            <Button variant="outline" size="lg" className="shrink-0 px-3" onClick={() => setOpen(true)} disabled={blocked}>
+              <Pencil /> Edit
+            </Button>
+          )}
         </div>
 
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 sm:px-6 sm:pb-6">
           {taxonomyError && (
             <div role="alert" className="flex items-center gap-2 text-xs text-red-600 mb-4">
               <AlertCircle className="size-3.5 shrink-0" />
@@ -730,23 +730,18 @@ export function RootCauseSection({ rca, findingId, onSaved }) {
           )}
 
           {!started ? (
-            <div className="flex flex-col items-center text-center gap-3 py-8">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-muted">
-                <Microscope className="size-5 text-muted-foreground/40" />
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border px-6 py-10 text-center">
+              <div className="flex size-10 items-center justify-center rounded-full bg-muted">
+                <Microscope className="size-5 text-muted-foreground" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Analysis not started</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs leading-relaxed">
-                  Understanding why this happened makes remediation effective and prevents recurrence.
-                </p>
-              </div>
-              <button
-                onClick={() => setOpen(true)}
-                disabled={blocked}
-                className="mt-1 text-sm font-medium px-5 py-2.5 rounded-xl bg-[#3B1F6A] hover:bg-[#52298F] text-white transition-colors disabled:opacity-50"
-              >
+              <p className="text-sm font-medium text-foreground">Analysis not started</p>
+              <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
+                Understanding why this happened makes remediation effective and prevents recurrence.
+              </p>
+              <Button size="lg" className="mt-2 px-4" onClick={() => setOpen(true)} disabled={blocked}>
+                {taxonomyLoading ? <Loader2 className="animate-spin" /> : <Microscope />}
                 {taxonomyLoading ? "Loading…" : "Start analysis"}
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_220px] gap-8">
@@ -766,7 +761,7 @@ export function RootCauseSection({ rca, findingId, onSaved }) {
                 {data.analysis && (
                   <div className="pt-5 border-t border-border/60">
                     <p className="text-xs text-muted-foreground mb-2">Analysis</p>
-                    <p className="text-[15px] text-foreground/90 leading-7 max-w-[68ch] whitespace-pre-line border-l-2 border-[#7B3FBE]/60 pl-4">
+                    <p className="max-w-[68ch] whitespace-pre-line border-l-2 border-primary/50 pl-4 text-sm leading-7 text-foreground/90">
                       {data.analysis}
                     </p>
                   </div>

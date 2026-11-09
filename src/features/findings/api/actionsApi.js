@@ -27,3 +27,14 @@ export const updateAction = (actionId, payload) =>
 
 
 export const deleteAction = (actionId) => api.delete(`/action/${actionId}`)
+
+
+export const submitActionEvidence = (actionId, payload) =>
+  api.post(`/action/${actionId}/evidences`, payload, {
+    meta: { successMessage: "Evidence submitted" },
+  })
+
+export const acceptActionEvidence = (actionId, evidenceId) =>
+  api.post(`/action/${actionId}/evidences/${evidenceId}`, null, {
+    meta: { successMessage: "Evidence accepted" },
+  })
